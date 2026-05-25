@@ -95,6 +95,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
 .txn-amt.inc{color:var(--green);}
 .txn-del{font-size:16px;color:var(--red);opacity:0.5;padding:2px 4px;cursor:pointer;}
 .txn-del:active{opacity:1;}
+.txn-edit{font-size:15px;color:var(--ink-mute);opacity:0.5;padding:2px 4px;cursor:pointer;}
+.txn-edit:active{opacity:1;color:var(--accent);}
 
 /* PERIOD TOGGLE */
 .period-toggle{margin:12px 18px 0;display:flex;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:4px;gap:4px;}
@@ -185,6 +187,100 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
 .tab-lbl{font-family:var(--mono);font-size:9px;letter-spacing:0.06em;text-transform:uppercase;}
 .add-tab .add-wrap{width:46px;height:46px;background:var(--accent);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:26px;line-height:1;color:var(--bg);margin-top:-14px;box-shadow:0 6px 24px var(--accent-glow);}
 
+/* SPLIT PINNED MODAL */
+.split-modal{
+  position:fixed;inset:0;z-index:201;
+  background:var(--surface);
+  display:flex;flex-direction:column;
+  transform:translateY(100%);
+  transition:transform .3s cubic-bezier(.32,.72,0,1);
+}
+.modal.open .split-modal{transform:translateY(0);}
+.split-pinned{
+  flex-shrink:0;
+  background:linear-gradient(180deg,#1e1c14 0%,#141310 100%);
+  border-bottom:1px solid rgba(232,120,74,0.15);
+  padding:calc(env(safe-area-inset-top,0px) + 12px) 18px 14px;
+}
+.split-topbar{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:14px;
+}
+.split-cancel{
+  background:none;border:none;
+  font-family:var(--sans);font-size:15px;
+  color:var(--ink-soft);cursor:pointer;padding:0;
+}
+.split-cancel:active{color:var(--ink);}
+.split-heading{
+  font-family:var(--serif);font-size:17px;font-weight:500;
+  letter-spacing:-0.01em;
+}
+.split-save-btn{
+  background:var(--accent);color:var(--bg);
+  border:none;border-radius:20px;
+  font-family:var(--sans);font-size:14px;font-weight:700;
+  padding:7px 18px;cursor:pointer;
+}
+.split-save-btn:active{opacity:.85;}
+.split-type-row{
+  display:flex;background:var(--surface2);
+  border-radius:10px;padding:3px;gap:3px;margin-bottom:14px;
+}
+.stype-btn{
+  flex:1;text-align:center;padding:9px 0;
+  font-family:var(--mono);font-size:11px;letter-spacing:0.05em;
+  color:var(--ink-mute);border-radius:8px;cursor:pointer;transition:.15s;
+}
+.stype-btn.on-exp{background:var(--accent);color:var(--bg);font-weight:700;}
+.stype-btn.on-inc{background:var(--green);color:var(--bg);font-weight:700;}
+.stype-btn.on-tra{background:var(--blue);color:var(--bg);font-weight:700;}
+.split-amt-wrap{
+  display:flex;align-items:center;
+  background:var(--surface2);
+  border:1.5px solid var(--border2);
+  border-radius:14px;
+  padding:12px 16px;
+  gap:8px;
+  margin-bottom:12px;
+  transition:border-color .2s;
+}
+.split-amt-wrap:focus-within{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px rgba(232,120,74,0.1);
+}
+.split-amt-prefix{
+  font-family:var(--mono);font-size:20px;
+  color:var(--ink-soft);font-weight:600;flex-shrink:0;
+}
+.split-amt-input{
+  flex:1;background:none;border:none;outline:none;
+  font-family:var(--serif);font-size:38px;font-weight:500;
+  letter-spacing:-0.03em;color:var(--accent);
+  width:100%;caret-color:var(--accent);
+  /* remove number input arrows */
+  -moz-appearance:textfield;
+}
+.split-amt-input::-webkit-outer-spin-button,
+.split-amt-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+.split-amt-input::placeholder{color:var(--ink-mute);}
+.split-amt-input.inc{color:var(--green);caret-color:var(--green);}
+.split-amt-input.tra{color:var(--blue);caret-color:var(--blue);}
+.split-amt-wrap.inc:focus-within{border-color:var(--green);box-shadow:0 0 0 3px var(--green-dim);}
+.quick-chips-row{display:flex;gap:7px;}
+.qchip{
+  flex:1;text-align:center;
+  padding:7px 0;
+  background:var(--surface2);border:1px solid var(--border2);
+  border-radius:20px;font-family:var(--mono);font-size:11px;
+  color:var(--ink-soft);cursor:pointer;transition:.1s;white-space:nowrap;
+}
+.qchip:active{background:var(--accent-dim);border-color:var(--accent);color:var(--accent);}
+.split-fields{
+  flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:4px 18px 0;
+}
+
 /* MODALS */
 .modal{position:fixed;inset:0;z-index:200;display:none;flex-direction:column;justify-content:flex-end;}
 .modal.open{display:flex;}
@@ -201,19 +297,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
 .type-btn.on-inc{background:var(--green);color:var(--bg);font-weight:600;}
 .type-btn.on-tra{background:var(--blue);color:var(--bg);font-weight:600;}
 
-/* AMOUNT */
-.amount-display{text-align:center;padding:14px 0 20px;}
-.amount-display .cur{font-family:var(--mono);font-size:20px;color:var(--ink-mute);vertical-align:super;}
-.amount-num{font-family:var(--serif);font-size:56px;font-weight:500;letter-spacing:-0.04em;transition:color .2s;}
-.amount-num.exp{color:var(--accent);}
-.amount-num.inc{color:var(--green);}
-.amount-num.tra{color:var(--blue);}
 
-/* NUMPAD */
-.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border-radius:14px;overflow:hidden;margin-bottom:18px;}
-.nk{background:var(--surface2);padding:17px;text-align:center;font-family:var(--serif);font-size:22px;font-weight:500;cursor:pointer;transition:background .1s;}
-.nk:active{background:var(--accent-dim);}
-.nk.del-key{font-size:17px;color:var(--accent);}
+
 
 /* FIELDS */
 .field{padding:13px 0;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:10px;}
@@ -442,29 +527,92 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
   </div>
 </div>
 
-<!-- ═══ ADD MODAL ═══ -->
+<!-- ═══ ADD MODAL — Split Pinned Pattern C ═══ -->
 <div class="modal" id="add-modal">
   <div class="modal-bg" onclick="closeAddModal()"></div>
+  <div class="split-modal">
+    <!-- PINNED TOP: type + amount — never moves -->
+    <div class="split-pinned">
+      <div class="split-topbar">
+        <button class="split-cancel" onclick="closeAddModal()">Cancel</button>
+        <div class="split-heading">New Transaction</div>
+        <button class="split-save-btn" id="save-txn-btn" onclick="saveTxn()">Save</button>
+      </div>
+      <div class="split-type-row">
+        <div class="stype-btn on-exp" onclick="setType('expense',this)">➖ Expense</div>
+        <div class="stype-btn" onclick="setType('income',this)">➕ Income</div>
+        <div class="stype-btn" onclick="setType('transfer',this)">↔ Transfer</div>
+      </div>
+      <div class="split-amt-wrap">
+        <div class="split-amt-prefix">₹</div>
+        <input
+          class="split-amt-input exp"
+          id="f-amount"
+          type="number"
+          inputmode="decimal"
+          placeholder="0"
+          autocomplete="off"
+          autocorrect="off"
+          onfocus="this.select()"
+        />
+      </div>
+      <div class="quick-chips-row">
+        <div class="qchip" onclick="addChip(500)">+₹500</div>
+        <div class="qchip" onclick="addChip(1000)">+₹1k</div>
+        <div class="qchip" onclick="addChip(2000)">+₹2k</div>
+        <div class="qchip" onclick="addChip(5000)">+₹5k</div>
+        <div class="qchip" onclick="addChip(10000)">+₹10k</div>
+      </div>
+    </div>
+    <!-- SCROLLABLE FIELDS below pinned area -->
+    <div class="split-fields">
+      <div class="field"><div class="field-lbl">Merchant</div><input class="field-inp" id="f-merchant" placeholder="e.g. BigBasket" autocomplete="off"/></div>
+      <div class="field">
+        <div class="field-lbl">Category</div>
+        <select class="field-sel" id="f-cat">
+          <option>Food & Drink</option><option>Groceries</option><option>Shopping</option>
+          <option>Beauty & Care</option><option>Entertainment</option><option>Transport</option>
+          <option>Bills & Utilities</option><option>Health</option><option>EMI</option>
+          <option>Travel</option><option>Education</option><option>Rent</option>
+          <option>Investment</option><option>Income</option><option>Salary</option>
+          <option>Donations</option><option>Car</option><option>Bike</option>
+          <option>Pets</option><option>Subscriptions</option><option>Fuel</option>
+          <option>Insurance</option><option>Gym & Fitness</option><option>Home & Garden</option>
+          <option>Medical</option><option>Kids</option><option>Other</option>
+        </select>
+      </div>
+      <div class="field"><div class="field-lbl">Account</div><select class="field-sel" id="f-acc"></select></div>
+      <div class="field">
+        <div class="field-lbl">Via</div>
+        <select class="field-sel" id="f-via">
+          <option>UPI</option><option>Card</option><option>Cash</option><option>Netbanking</option><option>Cheque</option>
+        </select>
+      </div>
+      <div class="field"><div class="field-lbl">Date</div><input class="field-inp" id="f-date" type="date"/></div>
+      <div class="field"><div class="field-lbl">Note</div><input class="field-inp" id="f-note" placeholder="Optional" autocomplete="off"/></div>
+      <div style="height:32px;"></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ EDIT MODAL ═══ -->
+<div class="modal" id="edit-modal">
+  <div class="modal-bg" onclick="closeEditModal()"></div>
   <div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title" id="modal-type-title">➖ New Expense</div>
-    <div class="modal-sub" id="modal-type-sub" style="margin-bottom:16px;">Tap type below to switch</div>
-    <div class="type-row">
-      <div class="type-btn on-exp" onclick="setType('expense',this)">➖ Expense</div>
-      <div class="type-btn" onclick="setType('income',this)">➕ Income</div>
-      <div class="type-btn" onclick="setType('transfer',this)">↔ Transfer</div>
+    <div class="modal-title">✎ Edit Transaction</div>
+    <div class="modal-sub" style="margin-bottom:16px;">Update any field then save</div>
+    <div class="type-row" id="edit-type-row">
+      <div class="type-btn" onclick="setEditType('expense',this)">➖ Expense</div>
+      <div class="type-btn" onclick="setEditType('income',this)">➕ Income</div>
+      <div class="type-btn" onclick="setEditType('transfer',this)">↔ Transfer</div>
     </div>
-    <div class="amount-display"><span class="cur">₹</span><span class="amount-num exp" id="amt-disp">0</span></div>
-    <div class="numpad">
-      <div class="nk" onclick="nk('1')">1</div><div class="nk" onclick="nk('2')">2</div><div class="nk" onclick="nk('3')">3</div>
-      <div class="nk" onclick="nk('4')">4</div><div class="nk" onclick="nk('5')">5</div><div class="nk" onclick="nk('6')">6</div>
-      <div class="nk" onclick="nk('7')">7</div><div class="nk" onclick="nk('8')">8</div><div class="nk" onclick="nk('9')">9</div>
-      <div class="nk" onclick="nk('.')">.</div><div class="nk" onclick="nk('0')">0</div><div class="nk del-key" onclick="nk('del')">⌫</div>
-    </div>
-    <div class="field"><div class="field-lbl">Merchant</div><input class="field-inp" id="f-merchant" placeholder="e.g. BigBasket" autocomplete="off"/></div>
+    <div class="field"><div class="field-lbl">Amount ₹</div><input class="field-inp" id="e-amount" type="number" inputmode="decimal" style="text-align:right;"/></div>
+    <div class="field"><div class="field-lbl">Merchant</div><input class="field-inp" id="e-merchant" autocomplete="off"/></div>
     <div class="field">
       <div class="field-lbl">Category</div>
-      <select class="field-sel" id="f-cat">
+      <select class="field-sel" id="e-cat">
         <option>Food & Drink</option><option>Groceries</option><option>Shopping</option>
         <option>Beauty & Care</option><option>Entertainment</option><option>Transport</option>
         <option>Bills & Utilities</option><option>Health</option><option>EMI</option>
@@ -476,22 +624,21 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
         <option>Medical</option><option>Kids</option><option>Other</option>
       </select>
     </div>
-    <div class="field"><div class="field-lbl">Account</div><select class="field-sel" id="f-acc"></select></div>
+    <div class="field"><div class="field-lbl">Account</div><select class="field-sel" id="e-acc"></select></div>
     <div class="field">
       <div class="field-lbl">Via</div>
-      <select class="field-sel" id="f-via">
+      <select class="field-sel" id="e-via">
         <option>UPI</option><option>Card</option><option>Cash</option><option>Netbanking</option><option>Cheque</option>
       </select>
     </div>
-    <div class="field"><div class="field-lbl">Date</div><input class="field-inp" id="f-date" type="date"/></div>
-    <div class="field"><div class="field-lbl">Note</div><input class="field-inp" id="f-note" placeholder="Optional" autocomplete="off"/></div>
+    <div class="field"><div class="field-lbl">Date</div><input class="field-inp" id="e-date" type="date"/></div>
+    <div class="field"><div class="field-lbl">Note</div><input class="field-inp" id="e-note" autocomplete="off" placeholder="Optional"/></div>
     <div style="display:flex;gap:10px;margin-top:22px;">
-      <button class="cancel-btn" onclick="closeAddModal()">Cancel</button>
-      <button class="save-btn" id="save-txn-btn" onclick="saveTxn()">Save</button>
+      <button class="cancel-btn" onclick="closeEditModal()">Cancel</button>
+      <button class="save-btn" id="edit-save-btn" onclick="saveEdit()">Update</button>
     </div>
   </div>
 </div>
-
 
 <!-- ═══ SMS PARSER MODAL ═══ -->
 <div class="modal" id="sms-modal">
@@ -782,7 +929,48 @@ async function loadAll(){
 }
 
 function normalise(t){
-  return {...t, amount: parseFloat(t.amount)||0};
+  return {...t, amount: parseFloat(t.amount)||0, date: cleanDate(t.date)};
+}
+
+// cleanDate: converts ANY date format from Google Sheets to YYYY-MM-DD
+// Handles all known Sheets output formats without timezone shifting.
+function cleanDate(raw){
+  if(!raw) return '';
+
+  // Already YYYY-MM-DD string — most common case, return immediately
+  if(typeof raw === 'string'){
+    const s = raw.trim();
+    // YYYY-MM-DD
+    if(/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    // ISO with time: "2026-05-19T00:00:00.000Z" — slice before T, never parse
+    if(s.includes('T')) return s.slice(0,10);
+    // DD-MM-YYYY or DD/MM/YYYY
+    const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if(dmy) return dmy[3]+'-'+dmy[2].padStart(2,'0')+'-'+dmy[1].padStart(2,'0');
+  }
+
+  // Google Sheets serial number (days since Jan 1 1900, with fake Feb 29 1900 bug)
+  if(typeof raw === 'number'){
+    const adj = raw > 59 ? raw - 1 : raw; // account for Sheets fake leap day
+    const ms  = Date.UTC(1900,0,1) + (adj-1)*86400000;
+    const d   = new Date(ms);
+    return d.getUTCFullYear()+'-'+String(d.getUTCMonth()+1).padStart(2,'0')+'-'+String(d.getUTCDate()).padStart(2,'0');
+  }
+
+  // Date object (shouldn't happen from JSON but just in case)
+  if(raw instanceof Date && !isNaN(raw)){
+    const y   = raw.getFullYear();
+    const m   = String(raw.getMonth()+1).padStart(2,'0');
+    const day = String(raw.getDate()).padStart(2,'0');
+    return y+'-'+m+'-'+day;
+  }
+
+  // Last resort: string-parse without creating Date object
+  // Try YYYY-MM-DD hidden inside a longer string
+  const match = String(raw).match(/(\d{4})-(\d{2})-(\d{2})/);
+  if(match) return match[1]+'-'+match[2]+'-'+match[3];
+
+  return String(raw); // give back whatever we got
 }
 
 // ── INIT ───────────────────────────────────────────────
@@ -867,7 +1055,10 @@ function renderHome(){
       </div>
       <div class="txn-right">
         <div class="txn-amt ${t.type==='income'?'inc':'exp'}">${t.type==='income'?'+':'-'}${fmt(t.amount)}</div>
-        <div class="txn-del" onclick="deleteTxn('${t.id}')">✕</div>
+        <div style="display:flex;gap:2px;">
+          <div class="txn-edit" onclick="openEditModal('${t.id}')">✎</div>
+          <div class="txn-del" onclick="deleteTxn('${t.id}')">✕</div>
+        </div>
       </div>
     </div>`).join('');
 }
@@ -1030,54 +1221,58 @@ function renderAccounts(){
 
 // ── ADD MODAL ──────────────────────────────────────────
 function openAddModal(){
-  amtStr='';
-  document.getElementById('amt-disp').textContent='0';
+  // Reset fields
+  document.getElementById('f-amount').value='';
   document.getElementById('f-merchant').value='';
   document.getElementById('f-note').value='';
-  document.getElementById('f-date').value=new Date().toISOString().split('T')[0];
-  const sel=document.getElementById('f-acc');
-  sel.innerHTML=(state.accounts.length?state.accounts:['Cash']).map(a=>
-    `<option>${typeof a==='string'?a:a.name}</option>`).join('');
-  // Always reset to Expense when opening fresh
-  currentType='expense';
-  document.querySelectorAll('.type-btn').forEach(b=>b.className='type-btn');
-  document.querySelector('.type-btn').className='type-btn on-exp';
-  document.getElementById('amt-disp').className='amount-num exp';
-  document.getElementById('modal-type-title').textContent='➖ New Expense';
-  document.getElementById('modal-type-sub').textContent='Tap type below';
-  document.getElementById('save-txn-btn').textContent='Save';
+  document.getElementById('f-date').value=localDateStr();
   document.getElementById('f-cat').value='Food & Drink';
+  // Populate accounts
+  const sel=document.getElementById('f-acc');
+  sel.innerHTML=(state.accounts.length?state.accounts:[{name:'Cash'}]).map(a=>
+    `<option>${a.name||a}</option>`).join('');
+  // Reset type to expense
+  currentType='expense';
+  document.querySelectorAll('.stype-btn').forEach(b=>{
+    b.className='stype-btn';
+  });
+  document.querySelectorAll('.stype-btn')[0].className='stype-btn on-exp';
+  document.getElementById('f-amount').className='split-amt-input exp';
+  document.querySelector('.split-amt-wrap').className='split-amt-wrap';
+  // Open modal
   document.getElementById('add-modal').classList.add('open');
+  // Focus amount input after animation
+  setTimeout(()=>document.getElementById('f-amount').focus(), 320);
 }
 function closeAddModal(){ document.getElementById('add-modal').classList.remove('open'); }
 function setType(t,el){
   currentType=t;
-  document.querySelectorAll('.type-btn').forEach(b=>b.className='type-btn');
-  el.className='type-btn on-'+t.slice(0,3);
-  document.getElementById('amt-disp').className='amount-num '+t.slice(0,3);
-
-  // Update modal title only — leave subtitle alone (SMS button lives next to it)
-  const titles = {expense:'➖ New Expense', income:'➕ New Income', transfer:'↔ Transfer'};
-  document.getElementById('modal-type-title').textContent = titles[t];
-  document.getElementById('save-txn-btn').textContent     = 'Save';
-
-  // Auto-set category based on type
-  const catSel = document.getElementById('f-cat');
-  if(t==='income')   catSel.value = 'Income';
-  if(t==='expense' && catSel.value==='Income') catSel.value = 'Food & Drink';
-  if(t==='transfer') catSel.value = 'Other';
+  // Update type buttons
+  document.querySelectorAll('.stype-btn').forEach(b=>b.className='stype-btn');
+  el.className='stype-btn on-'+t.slice(0,3);
+  // Update amount input color + wrap border
+  const inp=document.getElementById('f-amount');
+  inp.className='split-amt-input '+t.slice(0,3);
+  const wrap=document.querySelector('.split-amt-wrap');
+  wrap.className='split-amt-wrap'+(t==='income'?' inc':'');
+  // Auto-set category
+  const catSel=document.getElementById('f-cat');
+  if(t==='income')   catSel.value='Income';
+  if(t==='expense'&&catSel.value==='Income') catSel.value='Food & Drink';
+  if(t==='transfer') catSel.value='Other';
+  // Keep focus on amount
+  inp.focus();
 }
-function nk(k){
-  if(k==='del') amtStr=amtStr.slice(0,-1);
-  else if(k==='.'&&amtStr.includes('.')) return;
-  else if(amtStr.length>=10) return;
-  else amtStr+=k;
-  const v=parseFloat(amtStr)||0;
-  document.getElementById('amt-disp').textContent=v.toLocaleString('en-IN');
+// addChip — quick amount shortcut buttons
+function addChip(val){
+  const inp=document.getElementById('f-amount');
+  const cur=parseFloat(inp.value)||0;
+  inp.value=cur+val;
+  inp.focus();
 }
 async function saveTxn(){
-  const amount=parseFloat(amtStr)||0;
-  if(!amount){ showToast('Enter an amount'); return; }
+  const amount=parseFloat(document.getElementById('f-amount').value)||0;
+  if(!amount){ showToast('Enter an amount'); document.getElementById('f-amount').focus(); return; }
   if(isSaving) return;
   isSaving=true;
   const btn=document.getElementById('save-txn-btn');
@@ -1093,7 +1288,7 @@ async function saveTxn(){
   };
   // Optimistic UI
   const tempId='temp_'+Date.now();
-  state.txns.push({...txn,id:tempId});
+  state.txns.push({...txn,id:tempId,date:cleanDate(txn.date)});
   renderHome();
   closeAddModal();
   try{
@@ -1106,7 +1301,7 @@ async function saveTxn(){
   } catch(e){
     showToast('⚠ Saved locally — will sync when online');
   }
-  btn.textContent='Save'; btn.disabled=false;
+  btn.textContent='Save'; btn.disabled=false; isSaving=false;
   isSaving=false;
 }
 
@@ -1305,7 +1500,7 @@ function extractFromSMS(txt){
       if(!isNaN(dt.getTime())){out.date=`${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;break;}
     }
   }
-  if(!out.date) out.date=new Date().toISOString().split('T')[0];
+  if(!out.date) out.date=localDateStr();
 
   // ── ACCOUNT ──
   const ac=txt.match(/(?:A\/C|ACCT?|ACCOUNT)[^X\d]{0,8}(?:XX+|\*+)?(\d{4})/i);
@@ -1341,21 +1536,136 @@ function useSMSData(){
     openAddModal();
     // Set type
     const typeBtn = document.querySelector('.type-btn.' + (smsData.type==='income' ? 'income' : 'on-exp'));
-    if(smsData.type==='income'){
-      const incBtn = document.querySelectorAll('.type-btn')[1];
-      setType('income', incBtn);
-    } else {
-      const expBtn = document.querySelectorAll('.type-btn')[0];
-      setType('expense', expBtn);
-    }
+    const btns = document.querySelectorAll('.stype-btn');
+    if(smsData.type==='income') setType('income', btns[1]);
+    else setType('expense', btns[0]);
     // Set amount
-    amtStr = String(smsData.amount);
-    document.getElementById('amt-disp').textContent = smsData.amount.toLocaleString('en-IN');
+    document.getElementById('f-amount').value = smsData.amount;
     // Set fields
     if(smsData.merchant) document.getElementById('f-merchant').value = smsData.merchant;
     if(smsData.category) document.getElementById('f-cat').value = smsData.category;
     if(smsData.date)     document.getElementById('f-date').value = smsData.date;
   }, 200);
+}
+
+
+// ── EDIT TRANSACTION ───────────────────────────────────
+let editingId = null;
+let editType  = 'expense';
+
+// Returns today as YYYY-MM-DD in LOCAL device time — never UTC.
+// Always use this instead of new Date().toISOString().split("T")[0]
+// which returns UTC and shows yesterday for IST users.
+function localDateStr(d){
+  const dt = d || new Date();
+  const y  = dt.getFullYear();
+  const m  = String(dt.getMonth()+1).padStart(2,'0');
+  const day= String(dt.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function toDateInputValue(raw){
+  // Normalise any date format to YYYY-MM-DD for <input type="date">
+  // IMPORTANT: never use toISOString() — it converts to UTC which shifts
+  // the date back 1 day for IST (UTC+5:30) users.
+  // Always extract date parts in local time.
+  if(!raw) return '';
+  // Already YYYY-MM-DD — return as-is, no parsing needed
+  if(typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(raw.trim())) return raw.trim();
+  // ISO string with time component e.g. "2026-05-19T00:00:00.000Z"
+  // Chop at T — the date part before T is already the stored date
+  if(typeof raw === 'string' && raw.includes('T')) return raw.split('T')[0];
+  // DD-MM-YYYY or DD/MM/YYYY (some Sheets formats)
+  const dmy = String(raw).match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(dmy) return `${dmy[3]}-${dmy[2].padStart(2,'0')}-${dmy[1].padStart(2,'0')}`;
+  // Last resort: parse as Date but read LOCAL date parts (not UTC)
+  const d = new Date(raw);
+  if(!isNaN(d.getTime())){
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return `${y}-${m}-${day}`;
+  }
+  return '';
+}
+
+function openEditModal(id){
+  const t = state.txns.find(x => x.id === id);
+  if(!t){ showToast('Transaction not found'); return; }
+  editingId = id;
+  editType  = t.type || 'expense';
+  console.log('[Kharcha] edit date raw:', JSON.stringify(t.date), 'type:', typeof t.date);
+
+  // Set type toggle
+  document.querySelectorAll('#edit-type-row .type-btn').forEach(b => b.className = 'type-btn');
+  const typeMap = {expense:0, income:1, transfer:2};
+  const btns = document.querySelectorAll('#edit-type-row .type-btn');
+  if(btns[typeMap[editType]]) btns[typeMap[editType]].className = 'type-btn on-' + editType.slice(0,3);
+
+  // Fill every field with exactly what the transaction has — no fallbacks to today
+  document.getElementById('e-amount').value   = t.amount   || '';
+  document.getElementById('e-merchant').value = t.merchant || '';
+  document.getElementById('e-cat').value       = t.category || 'Other';
+  document.getElementById('e-date').value      = t.date || '';
+  document.getElementById('e-note').value      = t.note     || '';
+  document.getElementById('e-via').value       = t.via      || 'UPI';
+
+  // Populate accounts — pre-select the one this transaction used
+  const sel = document.getElementById('e-acc');
+  sel.innerHTML = (state.accounts.length ? state.accounts : [{name:'Cash'}])
+    .map(a => `<option${a.name===t.account?' selected':''}>${a.name}</option>`).join('');
+
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeEditModal(){
+  document.getElementById('edit-modal').classList.remove('open');
+  editingId = null;
+}
+
+function setEditType(t, el){
+  editType = t;
+  document.querySelectorAll('#edit-type-row .type-btn').forEach(b => b.className = 'type-btn');
+  el.className = 'type-btn on-' + t.slice(0,3);
+}
+
+async function saveEdit(){
+  if(!editingId){ showToast('No transaction selected'); return; }
+  const amount = parseFloat(document.getElementById('e-amount').value) || 0;
+  if(!amount){ showToast('Enter an amount'); return; }
+
+  const btn = document.getElementById('edit-save-btn');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+
+  const updated = {
+    id:       editingId,
+    type:     editType,
+    amount,
+    merchant: document.getElementById('e-merchant').value.trim(),
+    category: document.getElementById('e-cat').value,
+    account:  document.getElementById('e-acc').value,
+    via:      document.getElementById('e-via').value,
+    date:     document.getElementById('e-date').value,
+    note:     document.getElementById('e-note').value.trim()
+  };
+
+  // Update local state immediately
+  const idx = state.txns.findIndex(t => t.id === editingId);
+  if(idx >= 0) state.txns[idx] = { ...state.txns[idx], ...updated };
+  localStorage.setItem(LS_CACHE, JSON.stringify(state));
+
+  closeEditModal();
+  renderHome();
+
+  // Sync to Google Sheets
+  try{
+    await api({ action:'updateTxn', ...updated });
+    showToast('✓ Transaction updated');
+  } catch(e){
+    showToast('⚠ Updated locally — sync when online');
+  }
+
+  btn.textContent = 'Update'; btn.disabled = false;
 }
 
 // ── START ──────────────────────────────────────────────
