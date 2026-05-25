@@ -434,11 +434,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
 
   <!-- TAB BAR -->
   <div id="tabbar">
-    <div class="tab active" onclick="goTab('home',this)"><div class="tab-icon">⌂</div><div class="tab-lbl">Home</div></div>
-    <div class="tab" onclick="goTab('stats',this)"><div class="tab-icon">◎</div><div class="tab-lbl">Stats</div></div>
+    <div class="tab active" onclick="goTab('home',this)" data-screen="home"><div class="tab-icon">⌂</div><div class="tab-lbl">Home</div></div>
+    <div class="tab" onclick="goTab('stats',this)" data-screen="stats"><div class="tab-icon">◎</div><div class="tab-lbl">Stats</div></div>
     <div class="tab add-tab" onclick="openAddModal()"><div class="add-wrap">＋</div></div>
-    <div class="tab" onclick="goTab('budgets',this)"><div class="tab-icon">▣</div><div class="tab-lbl">Budgets</div></div>
-    <div class="tab" onclick="goTab('accounts',this)"><div class="tab-icon">◈</div><div class="tab-lbl">Accounts</div></div>
+    <div class="tab" onclick="openSmsModal()" data-screen="sms"><div class="tab-icon" style="font-size:20px;">📱</div><div class="tab-lbl">SMS</div></div>
+    <div class="tab" onclick="goTab('accounts',this)" data-screen="accounts"><div class="tab-icon">◈</div><div class="tab-lbl">Accounts</div></div>
   </div>
 </div>
 
@@ -448,10 +448,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title" id="modal-type-title">➖ New Expense</div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-      <div class="modal-sub" id="modal-type-sub" style="margin-bottom:0;">Tap type below</div>
-      <div onclick="closeAddModal();openSmsModal()" style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:20px;padding:7px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--accent);">📱 <span>Parse SMS</span></div>
-    </div>
+    <div class="modal-sub" id="modal-type-sub" style="margin-bottom:16px;">Tap type below to switch</div>
     <div class="type-row">
       <div class="type-btn on-exp" onclick="setType('expense',this)">➖ Expense</div>
       <div class="type-btn" onclick="setType('income',this)">➕ Income</div>
@@ -490,7 +487,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
     <div class="field"><div class="field-lbl">Note</div><input class="field-inp" id="f-note" placeholder="Optional" autocomplete="off"/></div>
     <div style="display:flex;gap:10px;margin-top:22px;">
       <button class="cancel-btn" onclick="closeAddModal()">Cancel</button>
-      <button class="save-btn" id="save-txn-btn" onclick="saveTxn()">Save</button>
+      <div style="display:flex;gap:10px;margin-top:22px;">
+      <button class="cancel-btn" onclick="closeAddModal();openSmsModal()" style="flex:0 0 auto;padding:16px 14px;font-size:13px;">📱 SMS</button>
+      <button class="save-btn" id="save-txn-btn" onclick="saveTxn()" style="margin-top:0;">Save</button>
+    </div>
     </div>
   </div>
 </div>
