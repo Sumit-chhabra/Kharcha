@@ -448,7 +448,10 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title" id="modal-type-title">➖ New Expense</div>
-    <div class="modal-sub" id="modal-type-sub">Tap a button below to switch type &nbsp;·&nbsp; <span style="color:var(--accent);cursor:pointer;" onclick="closeAddModal();openSmsModal()">📱 Parse SMS</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="modal-sub" id="modal-type-sub" style="margin-bottom:0;">Tap type below</div>
+      <div onclick="closeAddModal();openSmsModal()" style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border2);border-radius:20px;padding:7px 14px;cursor:pointer;font-size:13px;font-weight:600;color:var(--accent);">📱 <span>Parse SMS</span></div>
+    </div>
     <div class="type-row">
       <div class="type-btn on-exp" onclick="setType('expense',this)">➖ Expense</div>
       <div class="type-btn" onclick="setType('income',this)">➕ Income</div>
@@ -1044,7 +1047,7 @@ function openAddModal(){
   document.querySelector('.type-btn').className='type-btn on-exp';
   document.getElementById('amt-disp').className='amount-num exp';
   document.getElementById('modal-type-title').textContent='➖ New Expense';
-  document.getElementById('modal-type-sub').textContent='Tap a button below to switch type';
+  document.getElementById('modal-type-sub').textContent='Tap type below';
   document.getElementById('save-txn-btn').textContent='Save';
   document.getElementById('f-cat').value='Food & Drink';
   document.getElementById('add-modal').classList.add('open');
@@ -1056,13 +1059,10 @@ function setType(t,el){
   el.className='type-btn on-'+t.slice(0,3);
   document.getElementById('amt-disp').className='amount-num '+t.slice(0,3);
 
-  // Update modal title so type is unmistakable
+  // Update modal title only — leave subtitle alone (SMS button lives next to it)
   const titles = {expense:'➖ New Expense', income:'➕ New Income', transfer:'↔ Transfer'};
-  const subs   = {expense:'This will reduce your balance', income:'This will increase your balance', transfer:'Move between accounts'};
-  const btnlbl = {expense:'Save', income:'Save', transfer:'Save'};
   document.getElementById('modal-type-title').textContent = titles[t];
-  document.getElementById('modal-type-sub').textContent   = subs[t];
-  document.getElementById('save-txn-btn').textContent     = btnlbl[t];
+  document.getElementById('save-txn-btn').textContent     = 'Save';
 
   // Auto-set category based on type
   const catSel = document.getElementById('f-cat');
@@ -1248,22 +1248,92 @@ function parseSMS(){
 }
 
 function extractFromSMS(txt){
-  const t = txt.toUpperCase();
-  const out = { type:'expense', amount:0, merchant:'', date:'', account:'' };
+  const out = { type:'expense', amount:0, merchant:'', date:'', account:'', category:'' };
 
   // ── AMOUNT ──
-  // Matches: INR 2,500.00 / Rs.2500 / INR2500.00 / ₹ 2,500 / Rs 2500
-  const amtPatterns = [
-    /(?:INR|RS\.?|₹)\s*([\d,]+(?:\.\d{1,2})?)/i,
-    /([\d,]+(?:\.\d{1,2})?)\s*(?:INR|RS\.?|₹)/i,
-    /AMOUNT[:\s]+(?:INR|RS\.?|₹)?\s*([\d,]+(?:\.\d{1,2})?)/i,
-    /DEBITED\s+(?:BY\s+)?(?:INR|RS\.?|₹)?\s*([\d,]+(?:\.\d{1,2})?)/i,
-    /CREDITED\s+(?:WITH\s+)?(?:INR|RS\.?|₹)?\s*([\d,]+(?:\.\d{1,2})?)/i,
+  const amtR = [
+    /(?:INR|RS\.?|\u20b9)\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /([\d,]+(?:\.\d{1,2})?)\s*(?:INR|RS\.?|\u20b9)/i,
+    /(?:DEBITED|PAID)\s+(?:BY\s+)?(?:INR|RS\.?)?\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /(?:CREDITED|RECEIVED)\s+(?:WITH\s+)?(?:INR|RS\.?)?\s*([\d,]+(?:\.\d{1,2})?)/i,
   ];
-  for(const p of amtPatterns){
-    const m = txt.match(p);
-    if(m){ out.amount = parseFloat(m[1].replace(/,/g,'')); break; }
+  for(const p of amtR){ const m=txt.match(p); if(m){out.amount=parseFloat(m[1].replace(/,/g,''));break;} }
+
+  // ── TYPE ──
+  if(/CREDITED|RECEIVED|DEPOSITED|REFUND|CASHBACK|SALARY/i.test(txt)) out.type='income';
+  else if(/DEBITED|WITHDRAWN|PURCHASE|SPENT|PAID/i.test(txt)) out.type='expense';
+
+  // ── MERCHANT ──
+  let merchant='';
+  // 1. UPI slash format: UPI/MerchantName/Ref
+  const us=txt.match(/UPI\/([^\/\s][^\/]{1,28}?)(?:\/|\s|$)/i);
+  if(us) merchant=us[1].trim();
+
+  // 2. "to <name>" before stopwords
+  if(!merchant){
+    const tm=txt.match(/\bTO\s+([A-Z][A-Za-z0-9\s&]{2,26}?)(?:\s+(?:REF|VIA|ON|A\/C|UPI|NEFT|IMPS)|[,.]|$)/i);
+    if(tm && !/^(your|a\/c|bank|account|save|avl)/i.test(tm[1].trim())) merchant=tm[1].trim();
   }
+
+  // 3. "from <name>" for credits
+  if(!merchant){
+    const fm=txt.match(/\bFROM\s+([A-Z][A-Za-z\s]{2,26}?)(?:\s+(?:REF|ON|A\/C|VIA|NEFT|IMPS)|[,.])/i);
+    if(fm && !/^(your|a\/c|bank)/i.test(fm[1].trim())) merchant=fm[1].trim();
+  }
+
+  // 4. ATM
+  if(!merchant && /ATM|CASH\s*WITHDRAW/i.test(txt)) merchant='ATM Withdrawal';
+
+  // 5. "at <name>" fallback
+  if(!merchant){
+    const am=txt.match(/\bAT\s+([A-Z][A-Za-z0-9\s&]{2,26}?)(?:\s+(?:ON|REF|VIA|A\/C)|[,.])/i);
+    if(am && !/^(your|a\/c|bank)/i.test(am[1].trim())) merchant=am[1].trim();
+  }
+
+  if(merchant){
+    merchant=merchant.replace(/\b(YOUR|THE|BANK|ACCOUNT|A\/C)\b/gi,'').replace(/\s+/g,' ').trim();
+    merchant=merchant.replace(/\b\w/g,c=>c.toUpperCase());
+  }
+  out.merchant=merchant;
+
+  // ── DATE ──
+  const dr=[/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/,/(\d{1,2})[\-\s](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[\-\s](\d{2,4})/i];
+  const MO={jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+  for(const p of dr){
+    const m=txt.match(p);
+    if(m){
+      let d=parseInt(m[1]),mo=isNaN(parseInt(m[2]))?MO[m[2].toLowerCase()]:parseInt(m[2]),y=parseInt(m[3]);
+      if(y<100) y+=2000;
+      const dt=new Date(y,mo-1,d);
+      if(!isNaN(dt.getTime())){out.date=`${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;break;}
+    }
+  }
+  if(!out.date) out.date=new Date().toISOString().split('T')[0];
+
+  // ── ACCOUNT ──
+  const ac=txt.match(/(?:A\/C|ACCT?|ACCOUNT)[^X\d]{0,8}(?:XX+|\*+)?(\d{4})/i);
+  if(ac) out.account='A/c \u2022\u2022\u2022\u2022'+ac[1];
+
+  // ── CATEGORY ──
+  const ctx=(out.merchant+' '+txt).toLowerCase();
+  if(/zomato|swiggy|food|restaurant|cafe|pizza|burger|dhaba|barbeque|dominos/i.test(ctx)) out.category='Food & Drink';
+  else if(/bigbasket|blinkit|zepto|grofer|grocery|kirana|dmart|reliance fresh/i.test(ctx)) out.category='Groceries';
+  else if(/amazon|flipkart|myntra|meesho|nykaa|ajio|tata cliq/i.test(ctx)) out.category='Shopping';
+  else if(/netflix|hotstar|spotify|prime video|zee5|sonyliv|subscription/i.test(ctx)) out.category='Subscriptions';
+  else if(/petrol|diesel|fuel|hp pump|bharat petroleum|indian oil|shell/i.test(ctx)) out.category='Fuel';
+  else if(/ola|uber|rapido|metro|irctc|indigo|spicejet|air india|makemytrip/i.test(ctx)) out.category='Transport';
+  else if(/apollo|medplus|pharmeasy|1mg|hospital|clinic|pharmacy|medical/i.test(ctx)) out.category='Medical';
+  else if(/gym|cult\.fit|crossfit|fitness/i.test(ctx)) out.category='Gym & Fitness';
+  else if(/lic|insurance|bajaj allianz|hdfc ergo|tata aig|premium/i.test(ctx)) out.category='Insurance';
+  else if(/school|college|udemy|byju|unacademy|education|tuition/i.test(ctx)) out.category='Education';
+  else if(/rent|housing society|maintenance/i.test(ctx)) out.category='Rent';
+  else if(/donation|temple|church|mosque|ngo|charity/i.test(ctx)) out.category='Donations';
+  else if(/salary|payroll/i.test(ctx) && out.type==='income') out.category='Salary';
+  else if(/refund|cashback/i.test(ctx) && out.type==='income') out.category='Shopping';
+  else out.category=out.type==='income'?'Income':'Other';
+
+  return out;
+}
 
   // ── TYPE (debit = expense, credit = income) ──
   if(/CREDITED|CREDIT|RECEIVED|DEPOSITED|SALARY|REFUND|CASHBACK/i.test(txt)){
