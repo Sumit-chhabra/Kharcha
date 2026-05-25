@@ -487,10 +487,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
     <div class="field"><div class="field-lbl">Note</div><input class="field-inp" id="f-note" placeholder="Optional" autocomplete="off"/></div>
     <div style="display:flex;gap:10px;margin-top:22px;">
       <button class="cancel-btn" onclick="closeAddModal()">Cancel</button>
-      <div style="display:flex;gap:10px;margin-top:22px;">
-      <button class="cancel-btn" onclick="closeAddModal();openSmsModal()" style="flex:0 0 auto;padding:16px 14px;font-size:13px;">📱 SMS</button>
-      <button class="save-btn" id="save-txn-btn" onclick="saveTxn()" style="margin-top:0;">Save</button>
-    </div>
+      <button class="save-btn" id="save-txn-btn" onclick="saveTxn()">Save</button>
     </div>
   </div>
 </div>
