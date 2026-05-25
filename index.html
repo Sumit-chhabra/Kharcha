@@ -252,6 +252,24 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
 .url-input::placeholder{color:var(--ink-mute);}
 .url-save{padding:12px 18px;background:var(--accent);color:var(--bg);border:none;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;white-space:nowrap;}
 
+
+/* SMS PARSER */
+.sms-textarea{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:14px;font-family:var(--sans);font-size:13px;color:var(--ink);outline:none;resize:none;line-height:1.6;min-height:120px;caret-color:var(--accent);}
+.sms-textarea::placeholder{color:var(--ink-mute);}
+.sms-textarea:focus{border-color:var(--accent);}
+.sms-result{background:var(--surface2);border:1px solid var(--border2);border-radius:12px;padding:14px;margin-top:14px;display:none;}
+.sms-result.show{display:block;}
+.sms-result-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);}
+.sms-result-row:last-child{border-bottom:none;}
+.sms-result-lbl{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-mute);}
+.sms-result-val{font-size:14px;font-weight:500;}
+.sms-result-val.amount{font-family:var(--mono);font-size:16px;color:var(--accent);font-weight:700;}
+.sms-result-val.income{color:var(--green);}
+.sms-parse-btn{width:100%;margin-top:14px;padding:14px;background:var(--surface2);color:var(--ink);border:1px solid var(--border2);border-radius:12px;font-family:var(--sans);font-size:15px;font-weight:600;cursor:pointer;}
+.sms-parse-btn:active{border-color:var(--accent);color:var(--accent);}
+.sms-hint{font-size:11px;color:var(--ink-mute);line-height:1.6;margin-top:10px;}
+.sms-hint b{color:var(--ink-soft);}
+
 /* TOAST */
 #toast{position:fixed;bottom:calc(var(--tab-h) + var(--safe-bottom) + 14px);left:50%;transform:translateX(-50%) translateY(16px);background:var(--surface);border:1px solid var(--border2);color:var(--ink);padding:10px 20px;border-radius:40px;font-size:13px;font-family:var(--mono);opacity:0;transition:.22s;z-index:300;white-space:nowrap;pointer-events:none;}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
@@ -430,7 +448,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
   <div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title" id="modal-type-title">➖ New Expense</div>
-    <div class="modal-sub" id="modal-type-sub">Tap a button below to switch type</div>
+    <div class="modal-sub" id="modal-type-sub">Tap a button below to switch type &nbsp;·&nbsp; <span style="color:var(--accent);cursor:pointer;" onclick="closeAddModal();openSmsModal()">📱 Parse SMS</span></div>
     <div class="type-row">
       <div class="type-btn on-exp" onclick="setType('expense',this)">➖ Expense</div>
       <div class="type-btn" onclick="setType('income',this)">➕ Income</div>
@@ -451,7 +469,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
         <option>Beauty & Care</option><option>Entertainment</option><option>Transport</option>
         <option>Bills & Utilities</option><option>Health</option><option>EMI</option>
         <option>Travel</option><option>Education</option><option>Rent</option>
-        <option>Investment</option><option>Income</option><option>Other</option>
+        <option>Investment</option><option>Income</option><option>Salary</option>
+        <option>Donations</option><option>Car</option><option>Bike</option>
+        <option>Pets</option><option>Subscriptions</option><option>Fuel</option>
+        <option>Insurance</option><option>Gym & Fitness</option><option>Home & Garden</option>
+        <option>Medical</option><option>Kids</option><option>Other</option>
       </select>
     </div>
     <div class="field"><div class="field-lbl">Account</div><select class="field-sel" id="f-acc"></select></div>
@@ -470,6 +492,54 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
   </div>
 </div>
 
+
+<!-- ═══ SMS PARSER MODAL ═══ -->
+<div class="modal" id="sms-modal">
+  <div class="modal-bg" onclick="closeSmsModal()"></div>
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📱 SMS Parser</div>
+    <div class="modal-sub">Paste your bank SMS — amount & details auto-filled</div>
+
+    <textarea class="sms-textarea" id="sms-input" placeholder="Paste your bank SMS here…&#10;&#10;Example:&#10;INR 2,500.00 debited from A/c XX4291 on 25-05-26 UPI/BigBasket/Ref 123456"></textarea>
+
+    <button class="sms-parse-btn" onclick="parseSMS()">🔍 Parse SMS</button>
+
+    <div class="sms-result" id="sms-result">
+      <div class="sms-result-row">
+        <div class="sms-result-lbl">Type</div>
+        <div class="sms-result-val" id="sms-r-type">—</div>
+      </div>
+      <div class="sms-result-row">
+        <div class="sms-result-lbl">Amount</div>
+        <div class="sms-result-val amount" id="sms-r-amount">—</div>
+      </div>
+      <div class="sms-result-row">
+        <div class="sms-result-lbl">Merchant / Ref</div>
+        <div class="sms-result-val" id="sms-r-merchant">—</div>
+      </div>
+      <div class="sms-result-row">
+        <div class="sms-result-lbl">Date</div>
+        <div class="sms-result-val" id="sms-r-date">—</div>
+      </div>
+      <div class="sms-result-row">
+        <div class="sms-result-lbl">Account</div>
+        <div class="sms-result-val" id="sms-r-acc">—</div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button class="cancel-btn" onclick="closeSmsModal()">Cancel</button>
+        <button class="save-btn" id="sms-use-btn" onclick="useSMSData()">Use This →</button>
+      </div>
+    </div>
+
+    <div class="sms-hint">
+      Works with <b>HDFC, SBI, ICICI, Axis, Kotak, YES Bank, IDFC, IndusInd</b> SMS formats.<br/>
+      Supports <b>UPI, NEFT, IMPS, ATM, credit card</b> transactions.<br/>
+      Your SMS text is never sent anywhere — parsed entirely on your device.
+    </div>
+  </div>
+</div>
+
 <!-- ═══ BUDGET MODAL ═══ -->
 <div class="modal" id="bud-modal">
   <div class="modal-bg" onclick="closeBudModal()"></div>
@@ -483,7 +553,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
         <option>Food & Drink</option><option>Groceries</option><option>Shopping</option>
         <option>Beauty & Care</option><option>Entertainment</option><option>Transport</option>
         <option>Bills & Utilities</option><option>Health</option><option>EMI</option>
-        <option>Travel</option><option>Education</option><option>Rent</option><option>Other</option>
+        <option>Travel</option><option>Education</option><option>Rent</option>
+        <option>Investment</option><option>Donations</option><option>Car</option>
+        <option>Bike</option><option>Pets</option><option>Subscriptions</option>
+        <option>Fuel</option><option>Insurance</option><option>Gym & Fitness</option>
+        <option>Home & Garden</option><option>Medical</option><option>Kids</option>
+        <option>Other</option>
       </select>
     </div>
     <div class="field"><div class="field-lbl">Monthly ₹</div><input class="field-inp" id="b-amt" type="number" placeholder="e.g. 12000" inputmode="numeric"/></div>
@@ -603,9 +678,14 @@ const CAT_COLORS = ['#e8784a','#c9a257','#6ab47a','#5a9fd4','#c46ab4','#7ac4c4',
 function fmt(n){ return '₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:0}); }
 function fmtFull(n){ return '₹'+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:2}); }
 function catIcon(c){
-  const m={'Food & Drink':'🍽','Groceries':'🛒','Shopping':'🛍','Beauty & Care':'💄','Entertainment':'🎬',
-    'Transport':'🚗','Bills & Utilities':'💡','Health':'🏥','EMI':'🏦','Travel':'✈️',
-    'Education':'📚','Income':'💼','Rent':'🏠','Investment':'📈','Other':'📦'};
+  const m={
+    'Food & Drink':'🍽','Groceries':'🛒','Shopping':'🛍','Beauty & Care':'💄',
+    'Entertainment':'🎬','Transport':'🚗','Bills & Utilities':'💡','Health':'🏥',
+    'EMI':'🏦','Travel':'✈️','Education':'📚','Income':'💼','Salary':'💰',
+    'Rent':'🏠','Investment':'📈','Donations':'🤲','Car':'🚘','Bike':'🏍',
+    'Pets':'🐾','Subscriptions':'📺','Fuel':'⛽','Insurance':'🛡',
+    'Gym & Fitness':'💪','Home & Garden':'🏡','Medical':'💊','Kids':'🧒','Other':'📦'
+  };
   return m[c]||'💰';
 }
 function formatDate(ds){
@@ -1134,6 +1214,168 @@ function exportExcel(){
   a.download='kharcha_'+new Date().toISOString().split('T')[0]+'.csv';
   a.click();
   showToast('✓ Exported — open in Excel or Sheets');
+}
+
+
+// ── SMS PARSER ─────────────────────────────────────────
+let smsData = {};
+
+function openSmsModal(){
+  document.getElementById('sms-input').value = '';
+  document.getElementById('sms-result').classList.remove('show');
+  document.getElementById('sms-modal').classList.add('open');
+}
+function closeSmsModal(){ document.getElementById('sms-modal').classList.remove('open'); }
+
+function parseSMS(){
+  const raw = document.getElementById('sms-input').value.trim();
+  if(!raw){ showToast('Paste an SMS first'); return; }
+
+  smsData = extractFromSMS(raw);
+
+  if(!smsData.amount){
+    showToast('⚠ Could not find amount — try editing the SMS');
+    return;
+  }
+
+  document.getElementById('sms-r-type').textContent    = smsData.type==='income' ? '➕ Credit / Income' : '➖ Debit / Expense';
+  document.getElementById('sms-r-type').className      = 'sms-result-val ' + (smsData.type==='income'?'income':'');
+  document.getElementById('sms-r-amount').textContent  = '₹ ' + smsData.amount.toLocaleString('en-IN');
+  document.getElementById('sms-r-merchant').textContent= smsData.merchant || '—';
+  document.getElementById('sms-r-date').textContent    = smsData.date || 'Today';
+  document.getElementById('sms-r-acc').textContent     = smsData.account || '—';
+  document.getElementById('sms-result').classList.add('show');
+}
+
+function extractFromSMS(txt){
+  const t = txt.toUpperCase();
+  const out = { type:'expense', amount:0, merchant:'', date:'', account:'' };
+
+  // ── AMOUNT ──
+  // Matches: INR 2,500.00 / Rs.2500 / INR2500.00 / ₹ 2,500 / Rs 2500
+  const amtPatterns = [
+    /(?:INR|RS\.?|₹)\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /([\d,]+(?:\.\d{1,2})?)\s*(?:INR|RS\.?|₹)/i,
+    /AMOUNT[:\s]+(?:INR|RS\.?|₹)?\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /DEBITED\s+(?:BY\s+)?(?:INR|RS\.?|₹)?\s*([\d,]+(?:\.\d{1,2})?)/i,
+    /CREDITED\s+(?:WITH\s+)?(?:INR|RS\.?|₹)?\s*([\d,]+(?:\.\d{1,2})?)/i,
+  ];
+  for(const p of amtPatterns){
+    const m = txt.match(p);
+    if(m){ out.amount = parseFloat(m[1].replace(/,/g,'')); break; }
+  }
+
+  // ── TYPE (debit = expense, credit = income) ──
+  if(/CREDITED|CREDIT|RECEIVED|DEPOSITED|SALARY|REFUND|CASHBACK/i.test(txt)){
+    out.type = 'income';
+  } else if(/DEBITED|DEBIT|SPENT|PAID|WITHDRAWN|PURCHASE/i.test(txt)){
+    out.type = 'expense';
+  }
+
+  // ── MERCHANT / REFERENCE ──
+  // UPI: look for VPA or UPI ref
+  const upiM = txt.match(/(?:TO|AT|VPA|UPI[- ]?REF\s*\w+\s*(?:TO)?)\s+([A-Z][A-Z0-9\s&.\-]{2,30}?)(?:\s*(?:REF|UPI|IMPS|NEFT|ON|A\/C|AC|\.|,|$))/i);
+  if(upiM) out.merchant = upiM[1].trim();
+
+  // NEFT/IMPS sender/receiver
+  if(!out.merchant){
+    const neftM = txt.match(/(?:FROM|TO)\s+([A-Z][A-Z\s]{2,25}?)(?:\s+(?:REF|ON|A\/C|VIA|NEFT|IMPS|UPI|,|\.|$))/i);
+    if(neftM) out.merchant = neftM[1].trim();
+  }
+
+  // ATM
+  if(!out.merchant && /ATM|CASH/i.test(txt)){
+    out.merchant = 'ATM Withdrawal';
+  }
+
+  // Fallback: grab text after known keywords
+  if(!out.merchant){
+    const fallM = txt.match(/(?:AT|TOWARDS|FOR)\s+([A-Z][A-Z0-9\s&.\-]{2,30}?)(?:\s*(?:ON|REF|VIA|A\/C|,|\.))/i);
+    if(fallM) out.merchant = fallM[1].trim();
+  }
+
+  // Clean up merchant
+  if(out.merchant){
+    out.merchant = out.merchant.replace(/\s+/g,' ').replace(/[^a-zA-Z0-9 &.\-]/g,'').trim();
+    // Title case
+    out.merchant = out.merchant.replace(/\w/g, c => c.toUpperCase());
+  }
+
+  // ── DATE ──
+  // Formats: 25-05-26, 25/05/2026, 25-MAY-26, 25May2026
+  const datePatterns = [
+    /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/,
+    /(\d{1,2})[\-\s](JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[\-\s](\d{2,4})/i,
+  ];
+  const months = {JAN:1,FEB:2,MAR:3,APR:4,MAY:5,JUN:6,JUL:7,AUG:8,SEP:9,OCT:10,NOV:11,DEC:12};
+  for(const p of datePatterns){
+    const m = txt.match(p);
+    if(m){
+      let day, month, year;
+      if(isNaN(m[2])){
+        day=parseInt(m[1]); month=months[m[2].toUpperCase()]; year=parseInt(m[3]);
+      } else {
+        day=parseInt(m[1]); month=parseInt(m[2]); year=parseInt(m[3]);
+      }
+      if(year < 100) year += 2000;
+      const d = new Date(year, month-1, day);
+      if(!isNaN(d.getTime())){
+        out.date = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        break;
+      }
+    }
+  }
+  if(!out.date) out.date = new Date().toISOString().split('T')[0];
+
+  // ── ACCOUNT NUMBER ──
+  const accM = txt.match(/(?:A\/C|AC|ACCOUNT|A\/C NO\.?|ACCT)[\s\w]*?(?:XX|X{2,}|\*{2,})?(\d{4})/i);
+  if(accM) out.account = 'A/c ••••' + accM[1];
+
+  // ── GUESS CATEGORY FROM MERCHANT/CONTEXT ──
+  const merchantLower = (out.merchant||'').toLowerCase();
+  const txtLower = txt.toLowerCase();
+  if(/zomato|swiggy|food|restaurant|cafe|pizza|burger|hotel|dhaba|eat/i.test(merchantLower+txtLower)) out.category = 'Food & Drink';
+  else if(/bigbasket|grofer|zepto|blinkit|grocery|vegetable|kirana|dmart|reliance\s*fresh/i.test(merchantLower+txtLower)) out.category = 'Groceries';
+  else if(/amazon|flipkart|myntra|meesho|nykaa|ajio|shopping|mart/i.test(merchantLower+txtLower)) out.category = 'Shopping';
+  else if(/netflix|hotstar|spotify|prime|zee5|subscription|sony\s*liv/i.test(merchantLower+txtLower)) out.category = 'Subscriptions';
+  else if(/petrol|diesel|fuel|hp\s*petrol|bharat\s*petroleum|indian\s*oil|shell/i.test(merchantLower+txtLower)) out.category = 'Fuel';
+  else if(/rapido|ola|uber|auto|cab|metro|irctc|bus|train|flight|indigo|spicejet|airindia/i.test(merchantLower+txtLower)) out.category = 'Transport';
+  else if(/hospital|pharmacy|medplus|apollo|clinic|doctor|lab|diagnostic|medical/i.test(merchantLower+txtLower)) out.category = 'Medical';
+  else if(/gym|fitness|cult|crossfit/i.test(merchantLower+txtLower)) out.category = 'Gym & Fitness';
+  else if(/lic|insurance|bajaj\s*allianz|hdfc\s*ergo|policy/i.test(merchantLower+txtLower)) out.category = 'Insurance';
+  else if(/school|college|university|udemy|coursera|education|fee/i.test(merchantLower+txtLower)) out.category = 'Education';
+  else if(/atm|cash\s*withdraw/i.test(txtLower)) out.category = 'Other';
+  else if(/salary|payroll|ctc/i.test(txtLower) && out.type==='income') out.category = 'Salary';
+  else if(/donation|temple|charity|ngo/i.test(merchantLower+txtLower)) out.category = 'Donations';
+  else if(/rent|housing|apartment/i.test(txtLower)) out.category = 'Rent';
+  else out.category = out.type==='income' ? 'Income' : 'Other';
+
+  return out;
+}
+
+function useSMSData(){
+  if(!smsData.amount){ showToast('Parse an SMS first'); return; }
+  closeSmsModal();
+  // Pre-fill add modal with parsed data
+  setTimeout(() => {
+    openAddModal();
+    // Set type
+    const typeBtn = document.querySelector('.type-btn.' + (smsData.type==='income' ? 'income' : 'on-exp'));
+    if(smsData.type==='income'){
+      const incBtn = document.querySelectorAll('.type-btn')[1];
+      setType('income', incBtn);
+    } else {
+      const expBtn = document.querySelectorAll('.type-btn')[0];
+      setType('expense', expBtn);
+    }
+    // Set amount
+    amtStr = String(smsData.amount);
+    document.getElementById('amt-disp').textContent = smsData.amount.toLocaleString('en-IN');
+    // Set fields
+    if(smsData.merchant) document.getElementById('f-merchant').value = smsData.merchant;
+    if(smsData.category) document.getElementById('f-cat').value = smsData.category;
+    if(smsData.date)     document.getElementById('f-date').value = smsData.date;
+  }, 200);
 }
 
 // ── START ──────────────────────────────────────────────
