@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="icon" type="image/png" href="icon.png"/>
 <meta name="theme-color" content="#0c0b08"/>
-<meta name="app-version" content="2026-09-03b"/>
+<meta name="app-version" content="2026-09-03c"/>
 <title>Kharcha — ₹ Finance</title>
 <!-- Fonts load async so they never block app startup on iOS -->
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
@@ -206,7 +206,11 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:var(--
 .acc-total-v{font-family:var(--serif);font-size:26px;font-weight:500;}
 
 /* TAB BAR */
-#tabbar{flex-shrink:0;height:calc(var(--tab-h) + var(--tab-safe));background:rgba(12,11,8,0.94);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-top:1px solid var(--border);display:flex;align-items:flex-end;padding-top:4px;padding-bottom:var(--tab-safe);}
+/* Anchored to the viewport bottom rather than riding at the end of #app's flex
+   column, so it lands on the real screen edge even if the standalone web view
+   sizes #app differently. fitTabBar() then measures any residual gap at runtime
+   and grows the bar to cover it — self-correcting on every device. */
+#tabbar{position:fixed;left:0;right:0;bottom:0;z-index:100;height:calc(var(--tab-h) + var(--tab-safe));background:rgba(12,11,8,0.94);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-top:1px solid var(--border);display:flex;align-items:flex-end;padding-top:4px;padding-bottom:var(--tab-safe);}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 0 0;cursor:pointer;color:var(--ink-mute);transition:color .15s;}
 .tab.active{color:var(--accent);}
 .tab-icon{font-size:22px;line-height:1.1;}
@@ -1043,7 +1047,7 @@ async function init(){
 
   if(!scriptUrl){
     loading.style.display='none';
-    app.style.display='flex';
+    app.style.display='flex'; refitTabBar();
     renderHome(); renderAccounts(); renderBudgets();
     setTimeout(()=>showSetup(),300);
     return;
@@ -1053,7 +1057,7 @@ async function init(){
   const initTimeout = setTimeout(() => {
     if(loading.style.display !== 'none') {
       loading.style.display='none';
-      app.style.display='flex';
+      app.style.display='flex'; refitTabBar();
       renderHome(); renderAccounts(); renderBudgets();
       showToast('⚠ Slow connection — showing cached data', 3500);
     }
@@ -1062,7 +1066,7 @@ async function init(){
   const ok = await loadAll();
   clearTimeout(initTimeout);
   loading.style.display='none';
-  app.style.display='flex';
+  app.style.display='flex'; refitTabBar();
   renderHome(); renderAccounts(); renderBudgets();
   if(!ok) showToast('⚠ Offline — showing cached data');
 }
@@ -1848,6 +1852,31 @@ function applyBalanceVisibility(){
   }
 }
 
+// ── VIEWPORT SELF-CORRECTION ───────────────────────────
+// Devices disagree about where the bottom of the viewport is: iOS home-screen
+// web apps, Safari with its toolbar, Android Chrome and desktop all resolve
+// env(safe-area-inset-bottom), 100dvh and position:fixed differently. Rather
+// than hard-code an inset per device, measure the gap left under the tab bar
+// and grow the bar to close it. Runs on load, on resize and on rotation, so it
+// adapts to whatever the device actually gives us.
+function fitTabBar(){
+  const tb = document.getElementById('tabbar');
+  if(!tb || tb.offsetParent === null) return;
+  tb.style.paddingBottom = '';                       // back to the CSS baseline
+  const base = parseFloat(getComputedStyle(tb).paddingBottom) || 0;
+  const viewportBottom = window.visualViewport
+    ? window.visualViewport.height + window.visualViewport.offsetTop
+    : window.innerHeight;
+  const gap = Math.round(viewportBottom - tb.getBoundingClientRect().bottom);
+  // Only ever grow, and ignore absurd values (a mid-keyboard measurement)
+  if(gap > 0 && gap < 200) tb.style.paddingBottom = (base + gap) + 'px';
+}
+const refitTabBar = () => requestAnimationFrame(fitTabBar);
+window.addEventListener('resize', refitTabBar);
+window.addEventListener('orientationchange', ()=>setTimeout(fitTabBar, 150));
+if(window.visualViewport) window.visualViewport.addEventListener('resize', refitTabBar);
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') refitTabBar(); });
+
 // ── START ──────────────────────────────────────────────
 // Set favicon dynamically as extra fallback for all browsers
 (function(){
@@ -1861,7 +1890,7 @@ function skipLoading(){
   const app = document.getElementById('app');
   if(loading.style.display === 'none') return; // already hidden
   loading.style.display = 'none';
-  app.style.display = 'flex';
+  app.style.display = 'flex'; refitTabBar();
   renderHome(); renderAccounts(); renderBudgets();
   showToast('⚠ Tap Accounts → Sync Now to reload data');
 }
