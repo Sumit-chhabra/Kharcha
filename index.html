@@ -9,6 +9,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="icon" type="image/png" href="icon.png"/>
 <meta name="theme-color" content="#0c0b08"/>
+<meta name="app-version" content="2026-09-02b"/>
 <title>Kharcha — ₹ Finance</title>
 <!-- Fonts load async so they never block app startup on iOS -->
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
@@ -1776,7 +1777,35 @@ function skipLoading(){
   renderHome(); renderAccounts(); renderBudgets();
   showToast('⚠ Tap Accounts → Sync Now to reload data');
 }
+
+// ── AUTO-UPDATE ────────────────────────────────────────
+// iOS home-screen web apps cache the launch HTML for a long time and there's
+// no service worker here. On launch (and whenever the app is brought back to
+// the foreground) fetch the live index.html straight from the network, compare
+// its app-version meta to the running one, and hard-reload via a cache-busting
+// URL if the server has something newer. The ?v= navigation guarantees a fresh
+// document fetch, so this can't loop.
+const APP_VERSION = document.querySelector('meta[name="app-version"]')?.content || '';
+async function checkForUpdate(){
+  if(!APP_VERSION) return;
+  try{
+    const res = await fetch('index.html?_=' + Date.now(), {cache:'reload'});
+    if(!res.ok) return;
+    const txt = await res.text();
+    const m = txt.match(/name="app-version"\s+content="([^"]+)"/);
+    if(m && m[1] && m[1] !== APP_VERSION){
+      showToast('Updating to new version…', 1600);
+      setTimeout(()=>location.replace(location.pathname + '?v=' + encodeURIComponent(m[1])), 900);
+    }
+  }catch(e){ /* offline — try again next foreground */ }
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible') checkForUpdate();
+});
+window.addEventListener('focus', checkForUpdate);
+
 init();
+setTimeout(checkForUpdate, 2500);
 </script>
 </body>
 </html>
