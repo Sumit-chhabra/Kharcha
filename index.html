@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="icon" type="image/png" href="icon.png"/>
 <meta name="theme-color" content="#0c0b08"/>
-<meta name="app-version" content="2026-09-03a"/>
+<meta name="app-version" content="2026-09-03b"/>
 <title>Kharcha — ₹ Finance</title>
 <!-- Fonts load async so they never block app startup on iOS -->
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
@@ -549,9 +549,13 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:var(--
         <div style="font-size:14px;font-weight:500;">🔄 &nbsp;Sync Now</div>
         <div style="font-size:12px;color:var(--ink-mute);margin-top:3px;">Force reload all data from Google Sheets</div>
       </div>
-      <div style="padding:14px 16px;cursor:pointer;" onclick="exportExcel()">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);cursor:pointer;" onclick="exportExcel()">
         <div style="font-size:14px;font-weight:500;">📊 &nbsp;Export to Excel / CSV</div>
         <div style="font-size:12px;color:var(--ink-mute);margin-top:3px;">Download all transactions as spreadsheet</div>
+      </div>
+      <div style="padding:14px 16px;cursor:pointer;" onclick="showDisplayInfo()">
+        <div style="font-size:14px;font-weight:500;">📐 &nbsp;Display Info</div>
+        <div style="font-size:12px;color:var(--ink-mute);margin-top:3px;">Screen measurements — for diagnosing layout gaps</div>
       </div>
     </div>
   </div>
@@ -1365,8 +1369,11 @@ function setType(t,el){
   inp.className='split-amt-input '+t.slice(0,3);
   const wrap=document.querySelector('.split-amt-wrap');
   wrap.className='split-amt-wrap'+(t==='income'?' inc':'');
-  // Swap the category list to match the type (income sources vs spend buckets)
-  populateCatSelect('f-cat', t);
+  // Swap the category list to match the type (income sources vs spend buckets).
+  // Keep whatever was already picked if it's valid for the new type, so tapping
+  // Income after choosing a category doesn't silently discard the choice.
+  const prev = document.getElementById('f-cat').value;
+  populateCatSelect('f-cat', t, catsForType(t).includes(prev) ? prev : undefined);
   // Keep focus on amount
   inp.focus();
 }
@@ -1501,6 +1508,38 @@ async function saveScriptUrl(){
   }
 }
 
+// ── DISPLAY DIAGNOSTICS ────────────────────────────────
+// Reports the real viewport numbers. iOS home-screen web apps report several
+// different "heights" and only measurement distinguishes a short web view from
+// padding inside the tab bar — the two need opposite fixes.
+function showDisplayInfo(){
+  // Measure the live safe-area inset by letting the browser resolve env() for us
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;left:0;bottom:0;width:1px;pointer-events:none;'
+    + 'height:env(safe-area-inset-bottom,0px);';
+  document.body.appendChild(probe);
+  const safeBottom = Math.round(probe.getBoundingClientRect().height);
+  probe.remove();
+
+  const app = document.getElementById('app').getBoundingClientRect();
+  const tab = document.getElementById('tabbar').getBoundingClientRect();
+  const cs  = getComputedStyle(document.documentElement);
+  const lines = [
+    'standalone      : ' + (navigator.standalone === true),
+    'innerHeight     : ' + window.innerHeight,
+    'clientHeight    : ' + document.documentElement.clientHeight,
+    'screen.height   : ' + screen.height,
+    'visualViewport  : ' + (window.visualViewport ? Math.round(window.visualViewport.height) : 'n/a'),
+    'safe-inset-btm  : ' + safeBottom,
+    '--tab-safe      : ' + cs.getPropertyValue('--tab-safe').trim(),
+    'app top/bottom  : ' + Math.round(app.top) + ' / ' + Math.round(app.bottom),
+    'tabbar top/btm  : ' + Math.round(tab.top) + ' / ' + Math.round(tab.bottom),
+    'GAP below tabbar: ' + Math.round(window.innerHeight - tab.bottom),
+    'dpr             : ' + window.devicePixelRatio
+  ];
+  alert('KHARCHA DISPLAY INFO\n\n' + lines.join('\n'));
+}
+
 // ── EXPORT EXCEL ───────────────────────────────────────
 function exportExcel(){
   if(!state.txns.length){ showToast('No transactions to export'); return; }
@@ -1624,7 +1663,9 @@ function extractFromSMS(txt){
   else if(/amazon|flipkart|myntra|meesho|nykaa|ajio|tata cliq/i.test(ctx)) out.category='Shopping';
   else if(/netflix|hotstar|spotify|prime video|zee5|sonyliv|subscription/i.test(ctx)) out.category='Subscriptions';
   else if(/petrol|diesel|fuel|hp pump|bharat petroleum|indian oil|shell/i.test(ctx)) out.category='Fuel';
-  else if(/carpool|car pool|blablacar|quickride|quick ride|sride/i.test(ctx)) out.category='Carpooling';
+  // Word-boundary anchored — a bare "sride"/"ride" substring would otherwise
+  // swallow unrelated SMS (Rapido rides, reference numbers) into Carpooling.
+  else if(/\b(car ?pool(ing)?|blablacar|quick ?ride|sride)\b/i.test(ctx)) out.category='Carpooling';
   else if(/ola|uber|rapido|metro|irctc|indigo|spicejet|air india|makemytrip/i.test(ctx)) out.category='Transport';
   else if(/apollo|medplus|pharmeasy|1mg|hospital|clinic|pharmacy|medical/i.test(ctx)) out.category='Medical';
   else if(/gym|cult\.fit|crossfit|fitness/i.test(ctx)) out.category='Gym & Fitness';
