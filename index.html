@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="icon" type="image/png" href="icon.png"/>
 <meta name="theme-color" content="#0c0b08"/>
-<meta name="app-version" content="2026-09-02e"/>
+<meta name="app-version" content="2026-09-03a"/>
 <title>Kharcha — ₹ Finance</title>
 <!-- Fonts load async so they never block app startup on iOS -->
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
@@ -122,8 +122,6 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:var(--
 .txn-amt.inc{color:var(--green);}
 .txn-del{font-size:16px;color:var(--red);opacity:0.5;padding:2px 4px;cursor:pointer;}
 .txn-del:active{opacity:1;}
-.txn-edit{font-size:15px;color:var(--ink-mute);opacity:0.5;padding:2px 4px;cursor:pointer;}
-.txn-edit:active{opacity:1;color:var(--accent);}
 
 /* PERIOD TOGGLE */
 .period-toggle{margin:12px 18px 0;display:flex;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:4px;gap:4px;}
@@ -825,7 +823,6 @@ let state = { txns:[], budgets:[], accounts:[] };
 let balanceHidden = localStorage.getItem('kharcha_hide_bal') === '1';
 let scriptUrl = localStorage.getItem(LS_URL)||'';
 let currentType = 'expense';
-let amtStr = '';
 let homeDate = new Date();
 let statsDate = new Date();
 let statsYear = new Date().getFullYear();
@@ -859,11 +856,21 @@ function populateCatSelect(selId, type, selected){
   if(!sel) return;
   const list = catsForType(type).slice();
   if(selected && !list.includes(selected)) list.unshift(selected);
-  sel.innerHTML = list.map(c=>`<option${c===selected?' selected':''}>${c}</option>`).join('');
+  sel.innerHTML = list.map(c=>`<option${c===selected?' selected':''}>${esc(c)}</option>`).join('');
   sel.value = selected && list.includes(selected) ? selected : list[0];
 }
 
 // ── UTILS ──────────────────────────────────────────────
+// Every render path builds HTML with template strings and assigns it to
+// innerHTML, so anything the user typed (merchant, note, account name) or that
+// came back from Sheets must go through esc() first — otherwise a name like
+// "Ram & Co" or a note containing "<" breaks the markup.
+const ESC_MAP = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'};
+function esc(v){ return String(v==null?'':v).replace(/[&<>"']/g, c=>ESC_MAP[c]); }
+// For a value dropped inside a single-quoted JS string in an inline handler,
+// e.g. onclick="openEditModal('<id>')". Escape for JS first, then for HTML —
+// the parser decodes entities before the JS is read, so the two compose.
+function escAttr(v){ return esc(String(v==null?'':v).replace(/\\/g,'\\\\').replace(/'/g,"\\'")); }
 function fmt(n){ return '₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:0}); }
 function fmtFull(n){ return '₹'+Number(n||0).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:2}); }
 // Masked versions — return •••• when balance is hidden
@@ -887,13 +894,6 @@ function catIcon(c){
   };
   return m[c]||'💰';
 }
-function formatDate(ds){
-  const d=new Date(ds),now=new Date();
-  if(d.toDateString()===now.toDateString()) return 'Today';
-  const y=new Date(now); y.setDate(y.getDate()-1);
-  if(d.toDateString()===y.toDateString()) return 'Yesterday';
-  return MONTHS_S[d.getMonth()]+' '+d.getDate();
-}
 function txnsForMonth(d){
   return state.txns.filter(t=>{
     const td=new Date(t.date);
@@ -907,6 +907,13 @@ function showToast(msg,dur=2200){
   const el=document.getElementById('toast');
   el.textContent=msg; el.classList.add('show');
   setTimeout(()=>el.classList.remove('show'),dur);
+}
+// Persist the in-memory state to the offline cache. Every mutation must call
+// this, or the change is lost on the next cold start / offline load — a delete
+// that skipped it would resurrect the transaction.
+function saveCache(){
+  try{ localStorage.setItem(LS_CACHE, JSON.stringify(state)); }
+  catch(e){ /* quota or private mode — the remote sheet is still the source of truth */ }
 }
 function setSyncStatus(s){
   const d=document.getElementById('sync-dot');
@@ -970,7 +977,7 @@ async function loadAll(){
     state.txns = (data.txns||[]).map(normalise);
     state.budgets = data.budgets||[];
     state.accounts = data.accounts||[];
-    localStorage.setItem(LS_CACHE, JSON.stringify(state));
+    saveCache();
     return true;
   } catch(e){
     // fall back to cache
@@ -1113,7 +1120,7 @@ function renderHome(){
       total=parts.join(' · ')||'—';
     }
     return `<div class="day-group">
-      <div class="day-head"><span class="day-label">${dayLabel(g.date)}</span><span class="day-total">${total}</span></div>
+      <div class="day-head"><span class="day-label">${esc(dayLabel(g.date))}</span><span class="day-total">${total}</span></div>
       ${g.items.map(txnRow).join('')}
     </div>`;
   }).join('');
@@ -1121,19 +1128,20 @@ function renderHome(){
 
 // Single transaction row — the whole row opens the edit sheet; ✕ deletes.
 function txnRow(t){
-  return `<div class="txn" onclick="openEditModal('${t.id}')">
+  const id = escAttr(t.id);
+  return `<div class="txn" onclick="openEditModal('${id}')">
       <div class="txn-ico">${catIcon(t.category)}</div>
       <div class="txn-info">
-        <div class="txn-name">${t.merchant||t.category}</div>
+        <div class="txn-name">${esc(t.merchant||t.category)}</div>
         <div class="txn-meta">
-          <span class="badge">${t.category}</span>
-          ${t.via?`<span>${t.via}</span>`:''}
-          ${t.note?`<span>${t.note}</span>`:''}
+          <span class="badge">${esc(t.category)}</span>
+          ${t.via?`<span>${esc(t.via)}</span>`:''}
+          ${t.note?`<span>${esc(t.note)}</span>`:''}
         </div>
       </div>
       <div class="txn-right">
         <div class="txn-amt ${t.type==='income'?'inc':'exp'}">${balanceHidden?'₹ ••••':(t.type==='income'?'+':'−')+fmt(t.amount)}</div>
-        <div class="txn-del" onclick="event.stopPropagation();deleteTxn('${t.id}')">✕</div>
+        <div class="txn-del" onclick="event.stopPropagation();deleteTxn('${id}')">✕</div>
       </div>
     </div>`;
 }
@@ -1153,6 +1161,7 @@ function dayLabel(ds){
 async function deleteTxn(id){
   if(!confirm('Delete this transaction?')) return;
   state.txns = state.txns.filter(t=>t.id!==id);
+  saveCache();
   renderHome();
   try{ await api({action:'deleteTxn',id}); showToast('Deleted'); }
   catch(e){ showToast('⚠ Delete failed — check connection'); }
@@ -1235,7 +1244,7 @@ function renderDonut(svgId,legId,totId,cats,total){
   leg.innerHTML=cats.slice(0,5).map(([cat,amt],i)=>`
     <div class="leg-row">
       <div class="leg-dot" style="background:${CAT_COLORS[i%CAT_COLORS.length]}"></div>
-      <div class="leg-name">${cat.replace(' & ',' ')}</div>
+      <div class="leg-name">${esc(cat.replace(' & ',' '))}</div>
       <div class="leg-amt">${fmtH(amt)}</div>
     </div>`).join('');
 }
@@ -1254,7 +1263,7 @@ function renderBars(id,cats,total,kind){
     const col = kind==='income' ? INCOME_COLORS[i%INCOME_COLORS.length] : CAT_COLORS[i%CAT_COLORS.length];
     const share = total>0 ? Math.round(amt/total*100) : 0;
     return `<div class="bar-row">
-      <div class="bar-row-top"><span class="bar-row-name">${catIcon(cat)} ${cat}</span><span class="bar-row-amt">${fmtH(amt)}<span class="bar-row-pct">${share}%</span></span></div>
+      <div class="bar-row-top"><span class="bar-row-name">${catIcon(cat)} ${esc(cat)}</span><span class="bar-row-amt">${fmtH(amt)}<span class="bar-row-pct">${share}%</span></span></div>
       <div class="bar-track"><div class="bar-fill" style="width:${max>0?(amt/max*100).toFixed(1):0}%;background:${col}"></div></div>
     </div>`;
   }).join('');
@@ -1287,7 +1296,7 @@ function renderBudgets(){
     const left=limit-spent;
     return `<div class="bud-card ${over?'over':nearOver?'warn':''}">
       <div class="bud-head">
-        <div class="bud-cat"><div class="bud-ico">${catIcon(b.category)}</div><div class="bud-name">${b.category}</div></div>
+        <div class="bud-cat"><div class="bud-ico">${catIcon(b.category)}</div><div class="bud-name">${esc(b.category)}</div></div>
         <div class="bud-amts">
           <div class="bud-spent">${fmtH(spent)}</div>
           <div class="bud-limit">of ${fmtH(limit)}</div>
@@ -1312,10 +1321,10 @@ function renderAccounts(){
   list.innerHTML=state.accounts.map((a,i)=>`
     <div class="acc-card ${ACC_CLASSES[i%ACC_CLASSES.length]}">
       <div class="acc-top">
-        <div><div class="acc-type">${a.type}</div><div class="acc-name">${a.name}</div></div>
+        <div><div class="acc-type">${esc(a.type)}</div><div class="acc-name">${esc(a.name)}</div></div>
         <div class="acc-chip"></div>
       </div>
-      <div class="acc-num">${a.last4?'•••• '+a.last4:'ACCOUNT'}</div>
+      <div class="acc-num">${a.last4?'•••• '+esc(a.last4):'ACCOUNT'}</div>
       <div class="acc-bal">${fmtFullH(a.balance)}</div>
     </div>`).join('');
 }
@@ -1331,7 +1340,7 @@ function openAddModal(){
   // Populate accounts
   const sel=document.getElementById('f-acc');
   sel.innerHTML=(state.accounts.length?state.accounts:[{name:'Cash'}]).map(a=>
-    `<option>${a.name||a}</option>`).join('');
+    `<option>${esc(a.name||a)}</option>`).join('');
   // Reset type to expense
   currentType='expense';
   document.querySelectorAll('.stype-btn').forEach(b=>{
@@ -1394,13 +1403,12 @@ async function saveTxn(){
     // replace temp id
     const idx=state.txns.findIndex(t=>t.id===tempId);
     if(idx>=0) state.txns[idx].id=res.id||tempId;
-    localStorage.setItem(LS_CACHE,JSON.stringify(state));
+    saveCache();
     showToast('✓ Saved to Google Sheets');
   } catch(e){
     showToast('⚠ Saved locally — will sync when online');
   }
   btn.textContent='Save'; btn.disabled=false; isSaving=false;
-  isSaving=false;
 }
 
 // ── BUDGET MODAL ───────────────────────────────────────
@@ -1416,6 +1424,7 @@ async function saveBudget(){
   const idx=state.budgets.findIndex(b=>b.category===cat);
   if(idx>=0) state.budgets[idx].amount=amt;
   else state.budgets.push({category:cat,amount:amt});
+  saveCache();
   closeBudModal();
   renderBudgets();
   try{ await api({action:'saveBudget',category:cat,amount:amt}); showToast('✓ Budget saved'); }
@@ -1432,6 +1441,7 @@ async function saveAccount(){
     balance:parseFloat(document.getElementById('a-bal').value)||0,
     last4:document.getElementById('a-num').value.trim()};
   state.accounts.push(acc);
+  saveCache();
   closeAccModal();
   renderAccounts();
   try{ await api({action:'saveAccount',...acc}); showToast('✓ Account added'); }
@@ -1715,7 +1725,7 @@ function openEditModal(id){
   // Populate accounts — pre-select the one this transaction used
   const sel = document.getElementById('e-acc');
   sel.innerHTML = (state.accounts.length ? state.accounts : [{name:'Cash'}])
-    .map(a => `<option${a.name===t.account?' selected':''}>${a.name}</option>`).join('');
+    .map(a => `<option${a.name===t.account?' selected':''}>${esc(a.name)}</option>`).join('');
 
   document.getElementById('edit-modal').classList.add('open');
 }
@@ -1756,7 +1766,7 @@ async function saveEdit(){
   // Update local state immediately
   const idx = state.txns.findIndex(t => t.id === editingId);
   if(idx >= 0) state.txns[idx] = { ...state.txns[idx], ...updated };
-  localStorage.setItem(LS_CACHE, JSON.stringify(state));
+  saveCache();
 
   closeEditModal();
   renderHome();
