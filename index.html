@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="icon.png"/>
 <link rel="icon" type="image/png" href="icon.png"/>
 <meta name="theme-color" content="#0c0b08"/>
-<meta name="app-version" content="2026-09-03c"/>
+<meta name="app-version" content="2026-09-03d"/>
 <title>Kharcha — ₹ Finance</title>
 <!-- Fonts load async so they never block app startup on iOS -->
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
@@ -33,7 +33,7 @@
      value leaves a large empty band under the icons in the iOS standalone app.
      Still keeps clearance above the indicator. */
   --tab-safe:max(calc(env(safe-area-inset-bottom,0px) - 22px), 6px);
-  --r:16px;--tab-h:58px;
+  --r:16px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--ink);font-family:var(--sans);}
@@ -44,13 +44,13 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:var(--
 #app{position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;}
 
 /* SCREENS */
-.screen{display:none;flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:calc(var(--tab-h) + var(--tab-safe) + 16px);}
+.screen{display:none;flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:calc(var(--tabbar-h, 70px) + 16px);}
 .screen.active{display:block;animation:fadeUp .18s ease;}
 
 /* HOME — header block stays put, only the transaction list scrolls */
 #screen-home.active{display:flex;flex-direction:column;overflow:hidden;padding-bottom:0;}
 #screen-home .home-fixed{flex-shrink:0;}
-#screen-home #home-txns{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:calc(var(--tab-h) + var(--tab-safe) + 16px);}
+#screen-home #home-txns{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:calc(var(--tabbar-h, 70px) + 16px);}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
 /* SAFE AREA */
@@ -210,7 +210,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:var(--
    column, so it lands on the real screen edge even if the standalone web view
    sizes #app differently. fitTabBar() then measures any residual gap at runtime
    and grows the bar to cover it — self-correcting on every device. */
-#tabbar{position:fixed;left:0;right:0;bottom:0;z-index:100;height:calc(var(--tab-h) + var(--tab-safe));background:rgba(12,11,8,0.94);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-top:1px solid var(--border);display:flex;align-items:flex-end;padding-top:4px;padding-bottom:var(--tab-safe);}
+#tabbar{position:fixed;left:0;right:0;bottom:0;z-index:100;background:rgba(12,11,8,0.94);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border-top:1px solid var(--border);display:flex;align-items:flex-end;padding-top:6px;padding-bottom:var(--tab-safe);}
 .tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 0 0;cursor:pointer;color:var(--ink-mute);transition:color .15s;}
 .tab.active{color:var(--accent);}
 .tab-icon{font-size:22px;line-height:1.1;}
@@ -386,7 +386,7 @@ html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:var(--
 .sms-hint b{color:var(--ink-soft);}
 
 /* TOAST */
-#toast{position:fixed;bottom:calc(var(--tab-h) + var(--tab-safe) + 14px);left:50%;transform:translateX(-50%) translateY(16px);background:var(--surface);border:1px solid var(--border2);color:var(--ink);padding:10px 20px;border-radius:40px;font-size:13px;font-family:var(--mono);opacity:0;transition:.22s;z-index:300;white-space:nowrap;pointer-events:none;}
+#toast{position:fixed;bottom:calc(var(--tabbar-h, 70px) + 14px);left:50%;transform:translateX(-50%) translateY(16px);background:var(--surface);border:1px solid var(--border2);color:var(--ink);padding:10px 20px;border-radius:40px;font-size:13px;font-family:var(--mono);opacity:0;transition:.22s;z-index:300;white-space:nowrap;pointer-events:none;}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
 /* LOADING */
@@ -988,15 +988,44 @@ async function loadAll(){
     saveCache();
     return true;
   } catch(e){
-    // fall back to cache
-    const cached = localStorage.getItem(LS_CACHE);
-    if(cached){ state=JSON.parse(cached); return true; }
+    // Fall back to cache — and normalise it too. A cache written by an older
+    // build (or mid-migration) holds raw sheet values, where amounts are still
+    // strings and would concatenate instead of summing.
+    try{
+      const cached = localStorage.getItem(LS_CACHE);
+      if(cached){
+        const c = JSON.parse(cached) || {};
+        state = { txns:(c.txns||[]).map(normalise),
+                  budgets:c.budgets||[], accounts:c.accounts||[] };
+        return true;
+      }
+    } catch(err){ /* corrupt cache — fall through to the empty state */ }
     return false;
   }
 }
 
+// Google Sheets hands back whatever was typed into the cell: "Income" vs
+// "income", " Freelance " with stray spaces, blank cells, or a missing column.
+// Left raw, those each become their own bucket in the category breakdown (and a
+// capitalised type is dropped from the totals entirely), so canonicalise here —
+// this is the single door every transaction comes through.
+const ALL_CATS = [...EXPENSE_CATS, ...INCOME_CATS, ...TRANSFER_CATS];
 function normalise(t){
-  return {...t, amount: parseFloat(t.amount)||0, date: cleanDate(t.date)};
+  const clean = v => String(v==null?'':v).replace(/\s+/g,' ').trim();
+  let type = clean(t.type).toLowerCase();
+  if(type!=='income' && type!=='transfer') type = 'expense';
+
+  let category = clean(t.category);
+  // Fold case/spacing variants onto the canonical spelling ("SALARY" -> "Salary")
+  const known = ALL_CATS.find(c => c.toLowerCase() === category.toLowerCase());
+  if(known) category = known;
+  else if(!category) category = type==='income' ? 'Other Income'
+                              : type==='transfer' ? 'Transfer' : 'Other';
+
+  return {...t, type, category,
+    merchant: clean(t.merchant), account: clean(t.account),
+    via: clean(t.via), note: clean(t.note),
+    amount: parseFloat(t.amount)||0, date: cleanDate(t.date)};
 }
 
 // cleanDate: converts ANY date format from Google Sheets to YYYY-MM-DD
@@ -1535,7 +1564,7 @@ function showDisplayInfo(){
     'screen.height   : ' + screen.height,
     'visualViewport  : ' + (window.visualViewport ? Math.round(window.visualViewport.height) : 'n/a'),
     'safe-inset-btm  : ' + safeBottom,
-    '--tab-safe      : ' + cs.getPropertyValue('--tab-safe').trim(),
+    '--tabbar-h      : ' + cs.getPropertyValue('--tabbar-h').trim(),
     'app top/bottom  : ' + Math.round(app.top) + ' / ' + Math.round(app.bottom),
     'tabbar top/btm  : ' + Math.round(tab.top) + ' / ' + Math.round(tab.bottom),
     'GAP below tabbar: ' + Math.round(window.innerHeight - tab.bottom),
@@ -1859,17 +1888,33 @@ function applyBalanceVisibility(){
 // than hard-code an inset per device, measure the gap left under the tab bar
 // and grow the bar to close it. Runs on load, on resize and on rotation, so it
 // adapts to whatever the device actually gives us.
+// Ask the browser to resolve env(safe-area-inset-bottom) for us — the only
+// reliable way to read it, and it works on every engine.
+function safeInsetBottom(){
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;left:0;bottom:0;width:1px;visibility:hidden;'
+    + 'pointer-events:none;height:env(safe-area-inset-bottom,0px);';
+  document.body.appendChild(probe);
+  const h = Math.round(probe.getBoundingClientRect().height);
+  probe.remove();
+  return h;
+}
+// The bar is bottom-anchored and sizes to its own content, so its background
+// always reaches the screen edge. All that is left to decide is how much
+// clearance the labels need above the home indicator: derived from the device's
+// real inset, but capped so a 34px indicator band never becomes 34px of dead
+// space. No per-device constants.
 function fitTabBar(){
   const tb = document.getElementById('tabbar');
-  if(!tb || tb.offsetParent === null) return;
-  tb.style.paddingBottom = '';                       // back to the CSS baseline
-  const base = parseFloat(getComputedStyle(tb).paddingBottom) || 0;
-  const viewportBottom = window.visualViewport
-    ? window.visualViewport.height + window.visualViewport.offsetTop
-    : window.innerHeight;
-  const gap = Math.round(viewportBottom - tb.getBoundingClientRect().bottom);
-  // Only ever grow, and ignore absurd values (a mid-keyboard measurement)
-  if(gap > 0 && gap < 200) tb.style.paddingBottom = (base + gap) + 'px';
+  // NB: offsetParent is always null for position:fixed elements — use the
+  // client rects to test visibility instead, or this never runs.
+  if(!tb || !tb.getClientRects().length) return;
+  const inset = safeInsetBottom();
+  const clearance = Math.round(Math.min(Math.max(inset * 0.45, 6), 14));
+  tb.style.paddingBottom = clearance + 'px';
+  // Publish the real height so scroll containers clear the bar exactly
+  document.documentElement.style.setProperty(
+    '--tabbar-h', Math.ceil(tb.getBoundingClientRect().height) + 'px');
 }
 const refitTabBar = () => requestAnimationFrame(fitTabBar);
 window.addEventListener('resize', refitTabBar);
