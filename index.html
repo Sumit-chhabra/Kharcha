@@ -31,12 +31,20 @@
   --r:16px;--tab-h:68px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--sans);}
-#app{display:flex;flex-direction:column;height:100dvh;}
+html,body{height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--ink);font-family:var(--sans);}
+/* position:fixed pins the app to the real device viewport — fixes the blank
+   footer gap seen when running as an iOS home-screen web app (100dvh is
+   unreliable there) and stops the whole page from rubber-band scrolling. */
+#app{position:fixed;inset:0;display:flex;flex-direction:column;}
 
 /* SCREENS */
-.screen{display:none;flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding-bottom:calc(var(--tab-h) + var(--safe-bottom) + 16px);}
+.screen{display:none;flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:calc(var(--tab-h) + var(--safe-bottom) + 16px);}
 .screen.active{display:block;animation:fadeUp .18s ease;}
+
+/* HOME — header block stays put, only the transaction list scrolls */
+#screen-home.active{display:flex;flex-direction:column;overflow:hidden;padding-bottom:0;}
+#screen-home .home-fixed{flex-shrink:0;}
+#screen-home #home-txns{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding-bottom:calc(var(--tab-h) + var(--safe-bottom) + 16px);}
 @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 
 /* SAFE AREA */
@@ -86,8 +94,18 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
 
 /* TXN LIST */
 .txn-list{margin:0 18px;}
-.txn{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--border);position:relative;}
+.txn{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--border);position:relative;cursor:pointer;}
+.txn:active{background:var(--surface2);}
 .txn:last-child{border-bottom:none;}
+
+/* DAY GROUP — transactions bucketed by date with a daily total */
+.day-group{margin-bottom:2px;}
+.day-group:last-child .txn:last-child{border-bottom:none;}
+.day-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:14px 0 7px;position:sticky;top:0;background:var(--bg);z-index:3;}
+.day-group:first-child .day-head{padding-top:6px;}
+.day-label{font-family:var(--mono);font-size:10px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-soft);}
+.day-total{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--ink-soft);white-space:nowrap;}
+.day-total .di{color:var(--green);}
 .txn-ico{width:40px;height:40px;border-radius:12px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;}
 .txn-info{flex:1;min-width:0;}
 .txn-name{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -385,30 +403,32 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
 
   <!-- ═══════════════════ HOME ═══════════════════ -->
   <div class="screen active" id="screen-home">
-    <div class="safe-top"></div>
-    <div class="topbar">
-      <div class="topbar-brand">Kharcha</div>
-      <div class="topbar-right">
-        <div class="sync-dot" id="sync-dot" title="Sync status"></div>
-        <div class="eye-btn" id="eye-btn" onclick="toggleBalanceVisibility()" title="Show/hide amounts">👁</div>
-        <div class="chip" onclick="exportExcel()">Excel ↗</div>
+    <div class="home-fixed">
+      <div class="safe-top"></div>
+      <div class="topbar">
+        <div class="topbar-brand">Kharcha</div>
+        <div class="topbar-right">
+          <div class="sync-dot" id="sync-dot" title="Sync status"></div>
+          <div class="eye-btn" id="eye-btn" onclick="toggleBalanceVisibility()" title="Show/hide amounts">👁</div>
+          <div class="chip" onclick="exportExcel()">Excel ↗</div>
+        </div>
       </div>
-    </div>
-    <div class="month-nav">
-      <div class="mnav-btn" onclick="homeNav(-1)">‹</div>
-      <div class="mnav-label" id="home-month-lbl">May 2026</div>
-      <div class="mnav-btn" onclick="homeNav(1)">›</div>
-    </div>
-    <div class="balance-hero mt" style="margin-top:12px;">
-      <div class="bal-label">Net Balance</div>
-      <div class="bal-month" id="home-bal-month"></div>
-      <div class="bal-amount"><span class="cur">₹</span><span id="home-net">0</span></div>
-      <div class="bal-row">
-        <div class="bal-stat"><div class="l">Income</div><div class="v v-green" id="home-in">₹0</div></div>
-        <div class="bal-stat"><div class="l">Expenses</div><div class="v v-red" id="home-out">₹0</div></div>
+      <div class="month-nav">
+        <div class="mnav-btn" onclick="homeNav(-1)">‹</div>
+        <div class="mnav-label" id="home-month-lbl">May 2026</div>
+        <div class="mnav-btn" onclick="homeNav(1)">›</div>
       </div>
+      <div class="balance-hero mt" style="margin-top:12px;">
+        <div class="bal-label">Net Balance</div>
+        <div class="bal-month" id="home-bal-month"></div>
+        <div class="bal-amount"><span class="cur">₹</span><span id="home-net">0</span></div>
+        <div class="bal-row">
+          <div class="bal-stat"><div class="l">Income</div><div class="v v-green" id="home-in">₹0</div></div>
+          <div class="bal-stat"><div class="l">Expenses</div><div class="v v-red" id="home-out">₹0</div></div>
+        </div>
+      </div>
+      <div class="sec-label">Transactions by Day</div>
     </div>
-    <div class="sec-label">Recent Transactions</div>
     <div class="txn-list" id="home-txns"></div>
   </div>
 
@@ -579,6 +599,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
           <option>Bills & Utilities</option><option>Health</option><option>EMI</option>
           <option>Travel</option><option>Education</option><option>Rent</option>
           <option>Investment</option><option>Income</option><option>Salary</option>
+          <option>Carpooling</option>
           <option>Donations</option><option>Car</option><option>Bike</option>
           <option>Pets</option><option>Subscriptions</option><option>Fuel</option>
           <option>Insurance</option><option>Gym & Fitness</option><option>Home & Garden</option>
@@ -622,6 +643,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
         <option>Bills & Utilities</option><option>Health</option><option>EMI</option>
         <option>Travel</option><option>Education</option><option>Rent</option>
         <option>Investment</option><option>Income</option><option>Salary</option>
+        <option>Carpooling</option>
         <option>Donations</option><option>Car</option><option>Bike</option>
         <option>Pets</option><option>Subscriptions</option><option>Fuel</option>
         <option>Insurance</option><option>Gym & Fitness</option><option>Home & Garden</option>
@@ -705,7 +727,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font
         <option>Beauty & Care</option><option>Entertainment</option><option>Transport</option>
         <option>Bills & Utilities</option><option>Health</option><option>EMI</option>
         <option>Travel</option><option>Education</option><option>Rent</option>
-        <option>Investment</option><option>Donations</option><option>Car</option>
+        <option>Investment</option><option>Carpooling</option><option>Donations</option><option>Car</option>
         <option>Bike</option><option>Pets</option><option>Subscriptions</option>
         <option>Fuel</option><option>Insurance</option><option>Gym & Fitness</option>
         <option>Home & Garden</option><option>Medical</option><option>Kids</option>
@@ -838,7 +860,7 @@ function catIcon(c){
     'Food & Drink':'🍽','Groceries':'🛒','Shopping':'🛍','Beauty & Care':'💄',
     'Entertainment':'🎬','Transport':'🚗','Bills & Utilities':'💡','Health':'🏥',
     'EMI':'🏦','Travel':'✈️','Education':'📚','Income':'💼','Salary':'💰',
-    'Rent':'🏠','Investment':'📈','Donations':'🤲','Car':'🚘','Bike':'🏍',
+    'Rent':'🏠','Investment':'📈','Carpooling':'🚙','Donations':'🤲','Car':'🚘','Bike':'🏍',
     'Pets':'🐾','Subscriptions':'📺','Fuel':'⛽','Insurance':'🛡',
     'Gym & Fitness':'💪','Home & Garden':'🏡','Medical':'💊','Kids':'🧒','Other':'📦'
   };
@@ -1045,31 +1067,66 @@ function renderHome(){
   document.getElementById('home-net').textContent  = balanceHidden ? '••••' : (income-expense).toLocaleString('en-IN',{maximumFractionDigits:0});
   document.getElementById('home-in').textContent   = fmtH(income);
   document.getElementById('home-out').textContent  = fmtH(expense);
-  const sorted=[...list].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,30);
+  const sorted=[...list].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,80);
   const c=document.getElementById('home-txns');
   if(!sorted.length){
     c.innerHTML=`<div class="empty"><div class="empty-ico">₹</div><div class="empty-title">No transactions</div><div class="empty-sub">Tap ＋ to add your first entry for ${MONTHS[homeDate.getMonth()]}.</div></div>`;
     return;
   }
-  c.innerHTML=sorted.map(t=>`
-    <div class="txn">
+  // Bucket transactions by calendar day, keeping the sorted (newest-first) order
+  const groups=[]; const byDate={};
+  sorted.forEach(t=>{
+    const k=t.date;
+    if(!byDate[k]){ byDate[k]={date:k,items:[]}; groups.push(byDate[k]); }
+    byDate[k].items.push(t);
+  });
+  c.innerHTML=groups.map(g=>{
+    const dayExp=g.items.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0);
+    const dayInc=g.items.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0);
+    let total;
+    if(balanceHidden) total='₹ ••••';
+    else{
+      const parts=[];
+      if(dayExp>0) parts.push('−'+fmt(dayExp));
+      if(dayInc>0) parts.push(`<span class="di">+${fmt(dayInc)}</span>`);
+      total=parts.join(' · ')||'—';
+    }
+    return `<div class="day-group">
+      <div class="day-head"><span class="day-label">${dayLabel(g.date)}</span><span class="day-total">${total}</span></div>
+      ${g.items.map(txnRow).join('')}
+    </div>`;
+  }).join('');
+}
+
+// Single transaction row — the whole row opens the edit sheet; ✕ deletes.
+function txnRow(t){
+  return `<div class="txn" onclick="openEditModal('${t.id}')">
       <div class="txn-ico">${catIcon(t.category)}</div>
       <div class="txn-info">
         <div class="txn-name">${t.merchant||t.category}</div>
         <div class="txn-meta">
           <span class="badge">${t.category}</span>
-          <span>${formatDate(t.date)}</span>
           ${t.via?`<span>${t.via}</span>`:''}
+          ${t.note?`<span>${t.note}</span>`:''}
         </div>
       </div>
       <div class="txn-right">
-        <div class="txn-amt ${t.type==='income'?'inc':'exp'}">${balanceHidden?'₹ ••••':(t.type==='income'?'+':'-')+fmt(t.amount)}</div>
-        <div style="display:flex;gap:2px;">
-          <div class="txn-edit" onclick="openEditModal('${t.id}')">✎</div>
-          <div class="txn-del" onclick="deleteTxn('${t.id}')">✕</div>
-        </div>
+        <div class="txn-amt ${t.type==='income'?'inc':'exp'}">${balanceHidden?'₹ ••••':(t.type==='income'?'+':'−')+fmt(t.amount)}</div>
+        <div class="txn-del" onclick="event.stopPropagation();deleteTxn('${t.id}')">✕</div>
       </div>
-    </div>`).join('');
+    </div>`;
+}
+
+// Day-header label: Today / Yesterday / "Mon, Sep 1"
+function dayLabel(ds){
+  const today=localDateStr();
+  const yest=localDateStr(new Date(Date.now()-86400000));
+  if(ds===today) return 'Today';
+  if(ds===yest) return 'Yesterday';
+  const d=new Date(ds+'T00:00:00');
+  if(isNaN(d.getTime())) return ds;
+  const wd=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()];
+  return `${wd}, ${MONTHS_S[d.getMonth()]} ${d.getDate()}`;
 }
 
 async function deleteTxn(id){
@@ -1522,6 +1579,7 @@ function extractFromSMS(txt){
   else if(/amazon|flipkart|myntra|meesho|nykaa|ajio|tata cliq/i.test(ctx)) out.category='Shopping';
   else if(/netflix|hotstar|spotify|prime video|zee5|sonyliv|subscription/i.test(ctx)) out.category='Subscriptions';
   else if(/petrol|diesel|fuel|hp pump|bharat petroleum|indian oil|shell/i.test(ctx)) out.category='Fuel';
+  else if(/carpool|car pool|blablacar|quickride|quick ride|sride/i.test(ctx)) out.category='Carpooling';
   else if(/ola|uber|rapido|metro|irctc|indigo|spicejet|air india|makemytrip/i.test(ctx)) out.category='Transport';
   else if(/apollo|medplus|pharmeasy|1mg|hospital|clinic|pharmacy|medical/i.test(ctx)) out.category='Medical';
   else if(/gym|cult\.fit|crossfit|fitness/i.test(ctx)) out.category='Gym & Fitness';
